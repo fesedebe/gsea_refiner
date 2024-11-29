@@ -38,3 +38,4 @@ if __name__ == "__main__":
         input_file="data/input/fGSEA_UCLAAllPatch_deseq_recur.txt", 
         output_dir="data/intermediate/"
     )
+#call: python3 -m scripts.preprocessing.run_tokenize_pipeline
