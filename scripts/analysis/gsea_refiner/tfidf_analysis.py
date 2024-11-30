@@ -1,69 +1,85 @@
 import os
 import pandas as pd
+import pdb
 from sklearn.feature_extraction.text import TfidfVectorizer
+from scipy.stats import ks_2samp
 
+
+# Load the corpus
 def load_corpus(corpus_path: str) -> list:
-    """
-    Load the tokenized corpus from a text file.
-    
-    Args:
-        corpus_path (str): Path to the corpus file.
-        
-    Returns:
-        list: A list of strings, where each string represents a pathway's tokenized words.
-    """
     with open(corpus_path, "r") as f:
-        corpus = [line.strip() for line in f.readlines()]
-    return corpus
+        return [line.strip() for line in f.readlines()]
 
-def compute_tfidf(corpus: list, max_features: int = 1000) -> pd.DataFrame:
-    """
-    Compute TF-IDF scores for terms in the corpus.
-    
-    Args:
-        corpus (list): List of tokenized pathway strings.
-        max_features (int): Maximum number of terms to consider based on importance.
-        
-    Returns:
-        pd.DataFrame: DataFrame containing terms and their TF-IDF scores.
-    """
-    vectorizer = TfidfVectorizer(max_features=max_features, stop_words="english")
+
+# Compute TF-IDF
+def compute_tfidf(corpus: list, max_features: int = 1000, stop_words: list = None) -> pd.DataFrame:
+    vectorizer = TfidfVectorizer(max_features=max_features, stop_words=stop_words)
     tfidf_matrix = vectorizer.fit_transform(corpus)
     terms = vectorizer.get_feature_names_out()
-    scores = tfidf_matrix.sum(axis=0).A1  # Sum TF-IDF scores across all pathways
+    scores = tfidf_matrix.sum(axis=0).A1
     return pd.DataFrame({"Term": terms, "TF-IDF": scores}).sort_values(by="TF-IDF", ascending=False)
 
-def save_tfidf_scores(tfidf_df: pd.DataFrame, output_path: str) -> None:
-    """
-    Save TF-IDF scores to a CSV file.
-    
-    Args:
-        tfidf_df (pd.DataFrame): DataFrame containing terms and their TF-IDF scores.
-        output_path (str): Path to save the TF-IDF scores as a CSV file.
-    """
-    tfidf_df.to_csv(output_path, index=False)
-    print(f"TF-IDF scores saved to {output_path}")
+
+# Run KS test for significance
+def run_significance_tests(tfidf_terms: pd.DataFrame, gsea_results: pd.DataFrame, pval_threshold: float = 0.05) -> pd.DataFrame:
+    results = []
+
+    for term in tfidf_terms["Term"]:
+        # Subset pathways containing the term
+        test_pathways = gsea_results[gsea_results["pathway"].str.contains(term, case=False)]
+        background_pathways = gsea_results[~gsea_results["pathway"].str.contains(term, case=False)]
+
+        # Skip if there are too few pathways
+        if len(test_pathways) < 2 or len(background_pathways) < 2:
+            continue
+        #pdb.set_trace()
+        # Perform KS test on NES scores
+        p_value = ks_2samp(test_pathways.index, background_pathways.index).pvalue
+
+        # Store results
+        results.append({
+            "Term": term,
+            "TF-IDF": tfidf_terms.loc[tfidf_terms["Term"] == term, "TF-IDF"].values[0],
+            "KS_p-value": p_value,
+            "Significant": p_value <= pval_threshold
+        })
+
+    return pd.DataFrame(results)
+
+
+# Save results
+def save_results(output_path: str, df: pd.DataFrame) -> None:
+    df.to_csv(output_path, index=False)
+    print(f"Results saved to {output_path}")
+
 
 if __name__ == "__main__":
     # File paths
     corpus_path = "data/intermediate/corpus.txt"
-    output_path = "data/intermediate/tfidf_scores.csv"
+    gsea_results_path = "data/input/fGSEA_UCLAAllPatch_deseq_recur.txt"
+    tfidf_output_path = "data/intermediate/tfidf_scores.csv"
+    significance_output_path = "data/intermediate/significant_terms.csv"
 
-    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    # Stopwords for filtering
+    stop_words = ["process", "pathway", "regulation", "response", "activity", "positive", "negative"]
 
-    #Load the tokenized corpus
+    # Step 1: Load corpus
     print("[Step 1] Loading tokenized corpus...")
     corpus = load_corpus(corpus_path)
-    print(f"Loaded {len(corpus)} pathways from {corpus_path}.")
 
-    # Compute TF-IDF scores
+    # Step 2: Compute TF-IDF scores
     print("[Step 2] Computing TF-IDF scores...")
-    tfidf_df = compute_tfidf(corpus)
-    print(f"Computed TF-IDF scores for {len(tfidf_df)} terms.")
+    tfidf_df = compute_tfidf(corpus, stop_words=stop_words)
+    save_results(tfidf_output_path, tfidf_df)
 
-    # Save TF-IDF scores
-    print("[Step 3] Saving TF-IDF scores...")
-    save_tfidf_scores(tfidf_df, output_path)
+    # Step 3: Load GSEA results
+    print("[Step 3] Loading GSEA results...")
+    gsea_results = pd.read_table(gsea_results_path)
 
-    print("TF-IDF analysis completed successfully.")
+    # Step 4: Run significance testing
+    print("[Step 4] Running significance testing...")
+    significant_terms_df = run_significance_tests(tfidf_df, gsea_results)
+    save_results(significance_output_path, significant_terms_df)
+
+    print("TF-IDF and significance analysis completed successfully.")
     #call: python3 -m scripts.analysis.gsea_refiner.tfidf_analysis
