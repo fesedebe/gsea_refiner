@@ -163,6 +163,10 @@ cython_debug/
 
 # Ignore folder
 data/
+figures/
 
 # Ignore macOS system files
 .DS_Store
+results/.DS_Store
+scripts/.DS_Store
+scripts/analysis/.DS_Store
