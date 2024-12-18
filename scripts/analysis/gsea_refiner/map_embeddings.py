@@ -1,4 +1,5 @@
 import os
+import pdb
 
 def load_glove_embeddings(file_path):
     """
@@ -8,11 +9,17 @@ def load_glove_embeddings(file_path):
     """
     embeddings = {}
     with open(file_path, "r", encoding="utf-8") as f:
-        for line in f:
+        for line_num, line in enumerate(f, start=1):
             values = line.split()
             word = values[0]
-            vector = list(map(float, values[1:]))
-            embeddings[word] = vector
+            try:
+                vector = list(map(float, values[1:]))
+                embeddings[word] = vector
+                # if len(embeddings) < 8:
+                #     print(f"{word}: {vector[:7]} ...")
+            except ValueError:
+                print(f"Skipping corrupted line {line_num}: {line.strip()[:50]}")
+                continue  
     return embeddings
 
 def split_and_map_terms(terms, embeddings, phrase_level=False):
@@ -44,7 +51,7 @@ def split_and_map_terms(terms, embeddings, phrase_level=False):
 
 if __name__ == "__main__":
     # File paths
-    glove_file_path = "data/embeddings/glove.42B.300d.txt"
+    glove_file_path = "data/input/glove.840B.300d.txt"
     corpus_file_path = "data/intermediate/corpus.txt" 
     output_file = "data/intermediate/split_term_vectors.txt"
 
