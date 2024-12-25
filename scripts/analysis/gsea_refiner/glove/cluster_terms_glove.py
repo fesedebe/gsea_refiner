@@ -3,34 +3,35 @@ import pandas as pd
 from sklearn.cluster import KMeans, DBSCAN, AffinityPropagation
 from sklearn.metrics import silhouette_score, calinski_harabasz_score
 import matplotlib.pyplot as plt
-
-def kmeans_clustering(vectors, n_clusters=5):
-    kmeans = KMeans(n_clusters=n_clusters, random_state=42)
-    labels = kmeans.fit_predict(vectors)
-    silhouette = silhouette_score(vectors, labels)
-    ch_score = calinski_harabasz_score(vectors, labels)
-    return labels, silhouette, ch_score
-
-def dbscan_clustering(vectors, eps, min_samples):
-    dbscan = DBSCAN(eps=eps, min_samples=min_samples)
-    labels = dbscan.fit_predict(vectors)
-    silhouette = silhouette_score(vectors, labels) if len(set(labels)) > 1 else -1
-    ch_score = calinski_harabasz_score(vectors, labels) if len(set(labels)) > 1 else -1
-    return labels, silhouette, ch_score
-
-def affinity_propagation_clustering(vectors, damping=0.9, preference=None):
-    ap = AffinityPropagation(damping=damping, preference=preference, random_state=42)
-    labels = ap.fit_predict(vectors)
-    silhouette = silhouette_score(vectors, labels) if len(set(labels)) > 1 else -1
-    ch_score = calinski_harabasz_score(vectors, labels) if len(set(labels)) > 1 else -1
-    n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
-    return labels, silhouette, ch_score, n_clusters
+import plotly.express as px
 
 def load_reduced_vectors(file_path):
     df = pd.read_csv(file_path)
     terms = df["Term"].tolist()
     vectors = df[["PC1", "PC2"]].values
     return terms, vectors
+
+def perform_kmeans(vectors, n_clusters=5):
+    kmeans = KMeans(n_clusters=n_clusters, random_state=42)
+    labels = kmeans.fit_predict(vectors)
+    silhouette = silhouette_score(vectors, labels)
+    ch_score = calinski_harabasz_score(vectors, labels)
+    return labels, silhouette, ch_score
+
+def perform_dbscan(vectors, eps, min_samples):
+    dbscan = DBSCAN(eps=eps, min_samples=min_samples)
+    labels = dbscan.fit_predict(vectors)
+    silhouette = silhouette_score(vectors, labels) if len(set(labels)) > 1 else -1
+    ch_score = calinski_harabasz_score(vectors, labels) if len(set(labels)) > 1 else -1
+    return labels, silhouette, ch_score
+
+def perform_affinity_propagation(vectors, damping=0.9, preference=None):
+    ap = AffinityPropagation(damping=damping, preference=preference, random_state=42)
+    labels = ap.fit_predict(vectors)
+    silhouette = silhouette_score(vectors, labels) if len(set(labels)) > 1 else -1
+    ch_score = calinski_harabasz_score(vectors, labels) if len(set(labels)) > 1 else -1
+    n_clusters = len(set(labels)) - (1 if -1 in labels else 0)
+    return labels, silhouette, ch_score, n_clusters
 
 def plot_clusters(vectors, labels, terms, title, output_path=None):
     plt.figure(figsize=(12, 8))
@@ -50,15 +51,35 @@ def plot_clusters(vectors, labels, terms, title, output_path=None):
     else:
         plt.show()
 
-if __name__ == "__main__":
+def plot_interactive_clusters(vectors, labels, terms, title, output_path=None):
+    df = pd.DataFrame({
+        "PC1": vectors[:, 0],
+        "PC2": vectors[:, 1],
+        "Cluster": labels,
+        "Term": terms
+    })
 
+    fig = px.scatter(
+        df,
+        x="PC1",
+        y="PC2",
+        color="Cluster",
+        hover_data=["Term"],
+        title=title,
+        color_continuous_scale=px.colors.qualitative.Set1
+    )
+
+    if output_path:
+        fig.write_html(output_path)
+        print(f"Interactive plot saved to {output_path}")
+    else:
+        fig.show()
+
+if __name__ == "__main__":
     input_file = "data/intermediate/reduced_term_vectors.csv"
     kmeans_output_file = "data/output/kmeans_clusters.csv"
     dbscan_output_file = "data/output/dbscan_clusters.csv"
     affinity_output_file = "data/output/affinity_clusters.csv"
-    kmeans_plot = "results/figures/kmeans_plot.png"
-    dbscan_plot = "results/figures/dbscan_plot.png"
-    affinity_plot = "results/figures/affinity_plot.png"
 
     # Load vectors
     print("Loading reduced vectors...")
@@ -67,8 +88,8 @@ if __name__ == "__main__":
 
     # K-means clustering
     print("Finding optimal number of clusters for k-means...")
-    n_clusters = 10
-    kmeans_labels, kmeans_silhouette, kmeans_ch = kmeans_clustering(vectors, n_clusters)
+    n_clusters = 40
+    kmeans_labels, kmeans_silhouette, kmeans_ch = perform_kmeans(vectors, n_clusters)
     print(f"K-means Silhouette Score: {kmeans_silhouette:.2f}")
     print(f"K-means CH Score: {kmeans_ch:.2f}")
 
@@ -76,13 +97,11 @@ if __name__ == "__main__":
     kmeans_df.to_csv(kmeans_output_file, index=False)
     print(f"K-means clusters saved to {kmeans_output_file}")
 
-    plot_clusters(vectors, kmeans_labels, terms, "K-Means Clustering", kmeans_plot)
-
     # DBSCAN clustering
     print("Performing DBSCAN clustering...")
-    eps = 2
-    min_samples = 7
-    dbscan_labels, dbscan_silhouette, dbscan_ch = dbscan_clustering(vectors, eps, min_samples)
+    eps = 0.7
+    min_samples = 10
+    dbscan_labels, dbscan_silhouette, dbscan_ch = perform_dbscan(vectors, eps, min_samples)
     print(f"DBSCAN Silhouette Score: {dbscan_silhouette:.2f}")
     print(f"DBSCAN CH Score: {dbscan_ch:.2f}")
 
@@ -90,13 +109,11 @@ if __name__ == "__main__":
     dbscan_df.to_csv(dbscan_output_file, index=False)
     print(f"DBSCAN clusters saved to {dbscan_output_file}")
 
-    plot_clusters(vectors, dbscan_labels, terms, "DBSCAN Clustering", dbscan_plot)
-
     # Affinity Propagation clustering
     print("Performing Affinity Propagation clustering...")
-    damping = 0.9  # Damping factor
-    preference = None  # Default preference value
-    ap_labels, ap_silhouette, ap_ch, n_clusters_ap = affinity_propagation_clustering(vectors, damping, preference)
+    damping = 0.9 
+    preference = None 
+    ap_labels, ap_silhouette, ap_ch, n_clusters_ap = perform_affinity_propagation(vectors, damping, preference)
     print(f"Affinity Propagation Silhouette Score: {ap_silhouette:.2f}")
     print(f"Affinity Propagation CH Score: {ap_ch:.2f}")
     print(f"Number of clusters found: {n_clusters_ap}")
@@ -105,4 +122,7 @@ if __name__ == "__main__":
     ap_df.to_csv(affinity_output_file, index=False)
     print(f"Affinity Propagation clusters saved to {affinity_output_file}")
 
-    plot_clusters(vectors, ap_labels, terms, "Affinity Propagation Clustering", affinity_plot)
+    # Plot clusters
+    plot_interactive_clusters(vectors, kmeans_labels, terms, "K-Means Clustering", "results/figures/kmeans_plot.html")
+    plot_interactive_clusters(vectors, dbscan_labels, terms, "DBSCAN Clustering", "results/figures/dbscan_plot.html")
+    plot_interactive_clusters(vectors, ap_labels, terms, "Affinity Propagation Clustering", "results/figures/affinity_plot.html")
