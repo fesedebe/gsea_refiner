@@ -37,28 +37,28 @@ def visualize_pca(terms, reduced_vectors, output_path=None, alpha=0.4, size=25, 
     else:
         plt.show()
 
-if __name__ == "__main__":
-    # File paths
-    input_file = "data/intermediate/split_term_vectors.txt"
-    output_file = "data/intermediate/reduced_term_vectors.csv"
-    plot_file = "results/figures/pca_plot.png"
-
-    # Load split term vectors
+def reduce_vectors(input_file, output_file, plot_file=None, visualize=False):
     print("Loading split term vectors...")
     terms, vectors = load_split_vectors(input_file)
     print(f"Loaded {len(terms)} terms.")
 
-    # Reduce dimensions
     print("Reducing dimensions using PCA...")
     reduced_vectors = reduce_dimensions(vectors, n_components=2)
 
-    # Save reduced vectors
     print(f"Saving reduced vectors to {output_file}...")
     reduced_df = pd.DataFrame(reduced_vectors, columns=["PC1", "PC2"])
     reduced_df["Term"] = terms
     reduced_df.to_csv(output_file, index=False)
     print(f"Reduced vectors saved to {output_file}.")
 
-    # Visualize the reduced vectors
-    print("Visualizing reduced vectors...")
-    visualize_pca(terms, reduced_vectors, plot_file)
+    # Visualize reduced vectors (optional)
+    if visualize:
+        print("Visualizing reduced vectors...")
+        visualize_pca(terms, reduced_vectors, plot_file)
+
+if __name__ == "__main__":
+    input_file = "data/intermediate/split_term_vectors.txt"
+    output_file = "data/intermediate/reduced_term_vectors.csv"
+    plot_file = "results/figures/pca_plot.png"
+
+    reduce_vectors(input_file, output_file, plot_file=plot_file, visualize=True)

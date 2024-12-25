@@ -75,54 +75,57 @@ def plot_interactive_clusters(vectors, labels, terms, title, output_path=None):
     else:
         fig.show()
 
-if __name__ == "__main__":
-    input_file = "data/intermediate/reduced_term_vectors.csv"
-    kmeans_output_file = "data/output/kmeans_clusters.csv"
-    dbscan_output_file = "data/output/dbscan_clusters.csv"
-    affinity_output_file = "data/output/affinity_clusters.csv"
-
-    # Load vectors
+def cluster_and_visualize(input_file, output_dir, kmeans=True,  n_clusters = 40, dbscan=True, affinity_propagation=True):
     print("Loading reduced vectors...")
     terms, vectors = load_reduced_vectors(input_file)
     print(f"Loaded {len(terms)} terms.")
 
-    # K-means clustering
-    print("Finding optimal number of clusters for k-means...")
-    n_clusters = 40
-    kmeans_labels, kmeans_silhouette, kmeans_ch = perform_kmeans(vectors, n_clusters)
-    print(f"K-means Silhouette Score: {kmeans_silhouette:.2f}")
-    print(f"K-means CH Score: {kmeans_ch:.2f}")
+    if kmeans:
+        print("Performing K-means clustering...")
+        kmeans_labels, kmeans_silhouette, kmeans_ch = perform_kmeans(vectors, n_clusters)
+        print(f"K-means Silhouette Score: {kmeans_silhouette:.2f}")
+        print(f"K-means CH Score: {kmeans_ch:.2f}")
 
-    kmeans_df = pd.DataFrame({"Term": terms, "Cluster": kmeans_labels})
-    kmeans_df.to_csv(kmeans_output_file, index=False)
-    print(f"K-means clusters saved to {kmeans_output_file}")
+        kmeans_output_file = f"{output_dir}/kmeans_clusters.csv"
+        kmeans_df = pd.DataFrame({"Term": terms, "Cluster": kmeans_labels})
+        kmeans_df.to_csv(kmeans_output_file, index=False)
+        print(f"K-means clusters saved to {kmeans_output_file}")
 
-    # DBSCAN clustering
-    print("Performing DBSCAN clustering...")
-    eps = 0.7
-    min_samples = 10
-    dbscan_labels, dbscan_silhouette, dbscan_ch = perform_dbscan(vectors, eps, min_samples)
-    print(f"DBSCAN Silhouette Score: {dbscan_silhouette:.2f}")
-    print(f"DBSCAN CH Score: {dbscan_ch:.2f}")
+        plot_interactive_clusters(vectors, kmeans_labels, terms, "K-Means Clustering", f"{output_dir}/kmeans_plot.html")
 
-    dbscan_df = pd.DataFrame({"Term": terms, "Cluster": dbscan_labels})
-    dbscan_df.to_csv(dbscan_output_file, index=False)
-    print(f"DBSCAN clusters saved to {dbscan_output_file}")
+    if dbscan:
+        print("Performing DBSCAN clustering...")
+        eps = 0.5
+        min_samples = 7
+        dbscan_labels, dbscan_silhouette, dbscan_ch = perform_dbscan(vectors, eps, min_samples)
+        print(f"DBSCAN Silhouette Score: {dbscan_silhouette:.2f}")
+        print(f"DBSCAN CH Score: {dbscan_ch:.2f}")
 
-    # Affinity Propagation clustering
-    print("Performing Affinity Propagation clustering...")
-    damping = 0.9 
-    preference = None 
-    ap_labels, ap_silhouette, ap_ch, n_clusters_ap = perform_affinity_propagation(vectors, damping, preference)
-    print(f"Affinity Propagation Silhouette Score: {ap_silhouette:.2f}")
-    print(f"Affinity Propagation CH Score: {ap_ch:.2f}")
-    print(f"Number of clusters found: {n_clusters_ap}")
+        dbscan_output_file = f"{output_dir}/dbscan_clusters.csv"
+        dbscan_df = pd.DataFrame({"Term": terms, "Cluster": dbscan_labels})
+        dbscan_df.to_csv(dbscan_output_file, index=False)
+        print(f"DBSCAN clusters saved to {dbscan_output_file}")
 
-    ap_df = pd.DataFrame({"Term": terms, "Cluster": ap_labels})
-    ap_df.to_csv(affinity_output_file, index=False)
-    print(f"Affinity Propagation clusters saved to {affinity_output_file}")
+        plot_interactive_clusters(vectors, dbscan_labels, terms, "DBSCAN Clustering", f"{output_dir}/dbscan_plot.html")
 
-    # Plot clusters
-    plot_interactive_clusters(vectors, kmeans_labels, terms, "K-Means Clustering", "results/figures/kmeans_plot.html")
-    plot_interactive_clusters(vectors, dbscan_labels, terms, "DBSCAN Clustering", "results/figures/dbscan_plot.html")
-    plot_interactive_clusters(vectors, ap_labels, terms, "Affinity Propagation Clustering", "results/figures/affinity_plot.html")
+    if affinity_propagation:
+        print("Performing Affinity Propagation clustering...")
+        damping = 0.9
+        preference = None
+        ap_labels, ap_silhouette, ap_ch, n_clusters_ap = perform_affinity_propagation(vectors, damping, preference)
+        print(f"Affinity Propagation Silhouette Score: {ap_silhouette:.2f}")
+        print(f"Affinity Propagation CH Score: {ap_ch:.2f}")
+        print(f"Number of clusters found: {n_clusters_ap}")
+
+        affinity_output_file = f"{output_dir}/affinity_clusters.csv"
+        ap_df = pd.DataFrame({"Term": terms, "Cluster": ap_labels})
+        ap_df.to_csv(affinity_output_file, index=False)
+        print(f"Affinity Propagation clusters saved to {affinity_output_file}")
+
+        plot_interactive_clusters(vectors, ap_labels, terms, "Affinity Propagation Clustering", f"{output_dir}/affinity_plot.html")
+
+if __name__ == "__main__":
+    input_file = "data/intermediate/reduced_term_vectors.csv"
+    output_dir = "data/output"
+
+    cluster_and_visualize(input_file, output_dir, kmeans=True, dbscan=True, affinity_propagation=True)
