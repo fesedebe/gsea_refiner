@@ -75,7 +75,7 @@ def plot_interactive_clusters(vectors, labels, terms, title, output_path=None):
     else:
         fig.show()
 
-def cluster_and_visualize(input_file, output_dir, kmeans=True,  n_clusters = 40, dbscan=True, affinity_propagation=True):
+def cluster_and_visualize(input_file, output_dir, kmeans=True, n_clusters = 40, dbscan=True, affinity_propagation=True):
     print("Loading reduced vectors...")
     terms, vectors = load_reduced_vectors(input_file)
     print(f"Loaded {len(terms)} terms.")
