@@ -2,7 +2,7 @@ import numpy as np
 from sklearn.cluster import KMeans, DBSCAN
 from sklearn.metrics import silhouette_score
 #from scripts.utils.clustering_utils import load_reduced_vectors
-from run_clustering_glove import load_reduced_vectors
+from scripts.analysis.gsea_refiner.static_embeddings.cluster_terms_glove import load_reduced_vectors
 
 def find_optimal_k(vectors, max_k=20):
     silhouette_scores = []
