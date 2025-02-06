@@ -1,2 +1,2 @@
-# longtrac-framework
- A framework for analyzing longitudinal tumor evolution using bulk RNA-seq data.
+# gsea_refiner
+ A tool for categorizing and refining pathway enrichment results using statistical and NLP techniques.
