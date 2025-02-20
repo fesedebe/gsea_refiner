@@ -42,9 +42,9 @@ def split_and_map_terms(terms, embeddings, phrase_level=False):
 
     return term_vectors
 
-def map_corpus_to_vectors(glove_file_path, corpus_file_path, output_file, phrase_level=False):
+def map_corpus_to_vectors(glove_file, corpus_file_path, output_file, phrase_level=False):
     print("Loading GloVe embeddings...")
-    embeddings = load_glove_embeddings(glove_file_path)
+    embeddings = load_glove_embeddings(glove_file)
     print(f"Loaded {len(embeddings)} embeddings.")
 
     print("Loading tokenized corpus...")
@@ -62,8 +62,8 @@ def map_corpus_to_vectors(glove_file_path, corpus_file_path, output_file, phrase
     print("Processing completed.")
 
 if __name__ == "__main__":
-    glove_file_path = "data/input/glove.840B.300d.txt"
+    glove_file = "data/input/glove.840B.300d.txt"
     corpus_file_path = "data/intermediate/corpus.txt" 
     output_file = "data/intermediate/split_term_vectors.txt"
 
-    map_corpus_to_vectors(glove_file_path, corpus_file_path, output_file)
+    map_corpus_to_vectors(glove_file, corpus_file_path, output_file)
