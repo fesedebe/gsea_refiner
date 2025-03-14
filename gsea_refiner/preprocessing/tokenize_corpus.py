@@ -3,15 +3,11 @@ import re
 import json
 import os
 from typing import List, Optional, Set
+from gsea_refiner.utils import read_file
 
-#1. Extract & Clean Gene Set Names
+#1. Extract & clean gene set names
 def extract_gene_set_names(file_path: str) -> List[str]:
-    if file_path.endswith(".csv"):
-        df = pd.read_csv(file_path)
-    elif file_path.endswith(".txt"):
-        df = pd.read_table(file_path)
-    else:
-        raise ValueError("Unsupported file format. Only '.csv' and '.txt' are supported.")
+    df = read_file(file_path)
     
     if 'pathway' not in df.columns:
         raise ValueError("Input file must contain a 'pathway' column.")
@@ -28,7 +24,7 @@ def process_gene_set_names(file_path: str) -> List[str]:
     pathways = extract_gene_set_names(file_path)
     return [clean_gene_set_name(name) for name in pathways]
 
-#2. Tokenization
+#2. Tokenize
 STOPWORDS = {"and", "of", "the", "in", "for", "with", "on", "to", "a"}
 def tokenize_name(name: str, stopwords: Optional[Set[str]] = STOPWORDS) -> List[str]:
     tokens = re.split(r'\s+', name)
@@ -40,7 +36,7 @@ def tokenize_name(name: str, stopwords: Optional[Set[str]] = STOPWORDS) -> List[
 def tokenize_corpus(names: List[str], stopwords: Optional[Set[str]] = STOPWORDS) -> List[List[str]]:
     return [tokenize_name(name, stopwords) for name in names]
 
-#3. Saving Tokenized Corpus
+#3. Save tokenize corpus
 def save_corpus_to_txt(tokenized_names: List[List[str]], output_path: str) -> None:
     with open(output_path, "w") as f:
         for tokens in tokenized_names:
