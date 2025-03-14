@@ -2,11 +2,10 @@ import pandas as pd
 from gsea_refiner.utils import read_file
 
 def filter_and_weight_pathways(
-    input_file, output_filtered, output_weighted,
-    nes_col="NES", pathway_col="pathway", pval_col="padj",
-    nes_threshold=None, pval_threshold=0.05
-)-> None:
-    """Filters pathways by statistical significance (p-adj, default) and biological importance (NES, optional), then calculates weighted scores."""
+    input_file, output_filtered, output_weighted, nes_col="NES", pathway_col="pathway", pval_col="padj", nes_threshold=1.5, pval_threshold=0.05 )-> None:
+    """Filters pathways by statistical significance (p-adj) and biological importance (NES), then calculates weighted scores.
+    Both filters can be adjusted or disabled."""
+    
     df = read_file(input_file)
 
     for col in [nes_col, pathway_col, pval_col]:
