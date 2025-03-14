@@ -1,18 +1,6 @@
 import os
-from gsea_refiner.preprocessing.tokenize_corpus import (
-    process_gene_set_names, tokenize_corpus, save_corpus_to_txt, save_corpus_to_json
-)
+from gsea_refiner.preprocessing.tokenize_corpus import process_and_save_corpus
 from gsea_refiner.preprocessing.filter_and_weight import filter_and_weight_pathways
-
-def process_and_save_corpus(input_file, output_txt, output_json=None):
-    cleaned_names = process_gene_set_names(input_file)
-    tokenized_names = tokenize_corpus(cleaned_names, stopwords=None)
-
-    save_corpus_to_txt(tokenized_names, output_txt)
-    if output_json:
-        save_corpus_to_json(tokenized_names, output_json)
-
-    print(f"Saved corpus to {output_txt}")
 
 def filter_pathways(input_file, output_dir):
     filtered_output = os.path.join(output_dir, "filtered_pathways.csv")

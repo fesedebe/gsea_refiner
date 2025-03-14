@@ -45,3 +45,16 @@ def save_corpus_to_txt(tokenized_names: List[List[str]], output_path: str) -> No
 def save_corpus_to_json(tokenized_names: List[List[str]], output_path: str) -> None:
     with open(output_path, "w") as f:
         json.dump(tokenized_names, f, indent=2)
+
+def process_and_save_corpus(input_file, output_txt=None, output_json=None, save=True):
+    cleaned_names = process_gene_set_names(input_file)
+    tokenized_names = tokenize_corpus(cleaned_names, stopwords=None)
+
+    if save:
+        save_corpus_to_txt(tokenized_names, output_txt)
+        if output_json:
+            save_corpus_to_json(tokenized_names, output_json)
+        print(f"✅ Saved corpus to {output_txt}")
+    else:
+        pathways = extract_gene_set_names(input_file)
+        return pd.DataFrame({"pathway": pathways, "tokenized_name": cleaned_names})
