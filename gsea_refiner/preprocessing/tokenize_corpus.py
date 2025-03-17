@@ -57,4 +57,4 @@ def process_and_save_corpus(input_file, output_txt=None, output_json=None, save=
         print(f"✅ Saved corpus to {output_txt}")
     else:
         pathways = extract_gene_set_names(input_file)
-        return pd.DataFrame({"pathway": pathways, "tokenized_name": cleaned_names})
+        return pd.DataFrame({"pathway": pathways, "tokenized_pathway": cleaned_names})
