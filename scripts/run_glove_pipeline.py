@@ -1,6 +1,6 @@
 import os
 from gsea_refiner.embeddings.glove_embeddings import map_corpus_to_vectors
-from gsea_refiner.reduce_and_cluster import reduce_vectors, cluster_and_visualize
+from gsea_refiner.embeddings.reduce_and_cluster import reduce_vectors, cluster_and_visualize
 
 def run_glove_pipeline(glove_file, input_corpus, output_folder, kmeans=True, n_clusters = 40, dbscan=True, affinity_propagation=True):
     os.makedirs(output_folder, exist_ok=True)
