@@ -3,7 +3,7 @@ import re
 import json
 import os
 from typing import List, Optional, Set
-from gsea_refiner.utils import read_file
+from gsea_refiner.utils import read_file, clean_gene_set_name
 
 #1. Extract & clean gene set names
 def extract_gene_set_names(file_path: str) -> List[str]:
@@ -13,12 +13,6 @@ def extract_gene_set_names(file_path: str) -> List[str]:
         raise ValueError("Input file must contain a 'pathway' column.")
     
     return df['pathway'].tolist()
-
-def clean_gene_set_name(name: str) -> str:
-    name = name.lower()
-    name = re.sub(r'^[^_]*_', '', name)
-    name = name.replace('_', ' ').strip()
-    return name
 
 def process_gene_set_names(file_path: str) -> List[str]:
     pathways = extract_gene_set_names(file_path)

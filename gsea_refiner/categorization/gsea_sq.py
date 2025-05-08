@@ -4,6 +4,7 @@ import re
 import os
 from typing import Union, List, Optional, Dict
 from scipy.stats import ks_2samp
+from gsea_refiner.utils import label_pathways_by_regex
 
 
 def load_and_rank_gsea(df_gsea: Union[str, pd.DataFrame], verbose: bool = True) -> pd.DataFrame:
@@ -24,17 +25,9 @@ def load_and_rank_gsea(df_gsea: Union[str, pd.DataFrame], verbose: bool = True) 
 
 
 def assign_categories(df: pd.DataFrame, categories: List[str], cat_terms: List[str], verbose: bool = True) -> pd.DataFrame:
-    df = df.copy()
-    df['Category'] = 'Other'
-
-    for cat, pattern in zip(categories, cat_terms):
-        matched = df['pathway'].str.contains(pattern, case=False, regex=True)
-        if verbose:
-            print(f"{cat}: {matched.sum()} pathways matched")
-        df.loc[matched, 'Category'] = cat
-
-    df['Category'] = pd.Categorical(df['Category'], categories=categories + ['Other'])
-    return df
+    df_labeled = label_pathways_by_regex(df, categories, cat_terms, col="pathway", label_col="Category")
+    df_labeled['Category'] = pd.Categorical(df_labeled['Category'], categories=categories + ['Other'])
+    return df_labeled
 
 
 def compute_category_ks(df: pd.DataFrame,
