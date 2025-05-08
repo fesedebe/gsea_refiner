@@ -21,7 +21,7 @@ def run_keyword_ranking_pipeline(corpus_path: str, gsea_results_path: str, outpu
 
 if __name__ == "__main__":
     corpus_path = "data/intermediate/corpus.txt"
-    gsea_results_path = "data/input/fGSEA_scn_HC2C5.txt"
+    gsea_results_path = "data/input/gsea_scn.txt"
     output_dir = "data/intermediate/"
     
     run_keyword_ranking_pipeline(corpus_path, gsea_results_path, output_dir)

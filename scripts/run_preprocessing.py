@@ -36,7 +36,7 @@ def run_preprocessing_pipeline(input_file: str, output_dir: str,
     print("Preprocessing pipeline completed successfully.")
 
 if __name__ == "__main__":
-    input_file = "data/input/fGSEA_scn_HC2C5.txt"
+    input_file = "data/input/gsea_scn.txt"
     output_dir = "data/intermediate/"
     
     run_preprocessing_pipeline(input_file, output_dir, filter_pathways_flag=True, save_json=False)
