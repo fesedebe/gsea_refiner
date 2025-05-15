@@ -1,5 +1,14 @@
 # gsea_refiner
- A tool for categorizing and interpreting pathway enrichment results using NLP techniques.
+ A Python tool for categorizing and interpreting pathway enrichment results using transformer models and keyword-based labeling.
 
 ## Overview
- Pathway enrichment analysis often produces thousands of significant gene sets, making it difficult to extract meaningful insights. gsea_refiner applies keyword importance ranking, enrichment tests, and word embeddings (GloVe/BERT) to organize gene sets into biologically interpretable categories. It also generates visualizations summarizing pathway trends for RNA-seq datasets.
+ Pathway enrichment analysis often produces thousands of significant gene sets with overlapping biological themes, making it difficult to extract meaningful insights. GSEA-refiner helps organize these results into biologically interpretable categories using keyword matching and fine-tuned BioBERT classification. The tool supports modular preprocessing, model training, prediction, and visualization across transcriptomics datasets.
+
+## Installation
+Clone the repository and install:
+
+### For development (editable mode)
+```bash
+git clone https://github.com/fesedebe/gsea_refiner.git
+cd gsea_refiner
+pip install -e .
