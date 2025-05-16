@@ -22,6 +22,7 @@ Clone the repository and install:
 git clone https://github.com/fesedebe/gsea_refiner.git
 cd gsea_refiner
 pip install -e .
+```
 
 ## Dependencies
 - `transformers`
