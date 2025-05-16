@@ -1,8 +1,17 @@
 # gsea_refiner
- A Python tool for categorizing and interpreting pathway enrichment results using transformer models and keyword-based labeling.
+ A Python tool for transformer-based categorization and interpretation of pathway enrichment results.
 
 ## Overview
- Pathway enrichment analysis often produces thousands of significant gene sets with overlapping biological themes, making it difficult to extract meaningful insights. GSEA-refiner helps organize these results into biologically interpretable categories using keyword matching and fine-tuned BioBERT classification. The tool supports modular preprocessing, model training, prediction, and visualization across transcriptomics datasets.
+ Pathway enrichment analysis often returns thousands of significant gene sets with overlapping themes, making it difficult to extract meaningful insights. GSEA-refiner uses a fine-tuned transformer model (e.g., BioBERT) to assign biologically meaningful categories to enriched pathways. The tool also supports a rule-based alternative that groups pathways using keyword patterns and enrichment scoring. GSEA-refiner further identifies top-ranked genes within each category and generates visualizations to summarize enrichment trends across transcriptomic datasets.
+ 
+## Features
+- Categorizes enriched pathways using a fine-tuned transformer model
+- Predicts biological categories based on the semantic content
+- Optionally groups pathways using rule-based keyword matching and enrichment scoring
+- Ranks top genes within categories based on frequency significance
+- Provides modular components for preprocessing, classification, visualization, and extension
+
+![GSEA-refiner Workflow](docs/gsea_refiner_workflow.png)
 
 ## Installation
 Clone the repository and install:
