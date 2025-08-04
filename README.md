@@ -7,12 +7,15 @@
 ## Features
 - Categorizes enriched pathways using a fine-tuned transformer model
 - Predicts biological categories based on the semantic content
-- Optionally groups pathways using rule-based keyword matching and enrichment scoring
+- Derives training data using rule-based keyword matching and enrichment scoring
 - Ranks top genes within categories based on frequency significance
-- Provides modular components for preprocessing, classification, visualization, and extension
+- Provides modular components for preprocessing, classification, visualization etc
 
 ## Workflow
 ![GSEA-refiner Workflow](docs/gsea_refiner_workflow.png)
+
+## Documentation
+See [gsea-refiner-doc.md](./gsea-refiner-doc.md) for full technical details.
 
 ## Installation
 Clone the repository and install:
@@ -25,9 +28,10 @@ pip install -e .
 ```
 
 ## Dependencies
+See `requirements.txt` for full list.
 - `transformers`
 - `datasets`
 - `scikit-learn`
 - `pandas`
 - `torch`
-See `requirements.txt` for full list.
+
