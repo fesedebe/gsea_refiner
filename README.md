@@ -15,7 +15,7 @@
 ![GSEA-refiner Workflow](docs/gsea_refiner_workflow.png)
 
 ## Documentation
-See [gsea-refiner-doc.md](./gsea-refiner-doc.md) for full technical details.
+See [gsea-refiner-doc.md](docs/methods.md) for technical details.
 
 ## Installation
 Clone the repository and install:
