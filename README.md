@@ -1,21 +1,19 @@
 # gsea_refiner
- A python tool for transformer-based categorization and interpretation of pathway enrichment results.
+ A Python tool that summarizes long lists of enriched pathways into functional categories.
 
-## Overview
- Pathway enrichment analysis often returns thousands of significant gene sets with overlapping themes, making interpretation difficult. GSEA-refiner uses a fine-tuned transformer model (e.g., BioBERT) to assign biologically meaningful categories to enriched pathways. The tool also identifies top-ranked genes within each category and generates visualizations to summarize enrichment trends across transcriptomic datasets.
+## Context
+ GSEA/pathway enrichment analysis often returns thousands of significant gene sets with overlapping themes. While this helps identify individual pathways, it makes system-wide patterns harder to interpret. GSEA-refiner fine-tunes a biomedical transformer model (BioBERT) to map enriched pathways into a small set of interpretable themes (e.g., Cell-cycle, Immune, Neuro). This helps identify dominant trends quickly and compare signals across cohorts or treatment stages.
  
 ## Features
-- Categorizes enriched pathways using a fine-tuned transformer model
-- Predicts biological categories based on the semantic content
-- Derives training data using rule-based keyword matching and enrichment scoring
-- Ranks top genes within categories based on frequency significance
-- Provides modular components for preprocessing, classification, visualization etc
+- Takes GSEA results and predicts per-term biological categories based on semantic content
+- Partially fine-tuned model outperformed traditional (TF-IDF, BiLSTM) and general-domain (DistilBERT) models
+- Ranks top genes within categories and generates visualizations summarizing enrichment trends
 
 ## Workflow
 ![GSEA-refiner Workflow](docs/gsea_refiner_workflow.png)
 
 ## Documentation
-See [gsea-refiner-doc.md](docs/methods.md) for technical details.
+See [methods.md](docs/methods.md) for technical and evaluation details.
 
 ## Installation
 Clone the repository and install:
@@ -35,3 +33,13 @@ See `requirements.txt` for full list.
 - `pandas`
 - `torch`
 
+## Repo Layout
+```
+gsea_refiner/categorization/   # Rule-based labeling, transformer classification
+gsea_refiner/preprocessing/    # Token filtering, weighting
+gsea_refiner/visualization/    # Plotting utilities
+scripts # Workflows
+```
+
+## Status  
+Developed for a UCLA Bioinformatics PhD dissertation on adaptive therapy resistance in aggressive cancers, GSEA-refiner has been used to compare enrichment trends across cohorts. It is actively maintained and supports both exploratory and publication-ready analyses.

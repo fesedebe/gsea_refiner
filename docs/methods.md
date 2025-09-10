@@ -1,12 +1,12 @@
-# GSEA-refiner Documentation
+# Methods, Data, and Evaluation
 
-## Problem Framing
+## Preprocessing
+Tokenize pathway names from input data: e.g: ”GOBP_IMMUNE_RESPONSE_PATHWAY" → [immune response pathway]
 
-GSEA-refiner is a Python/transformer-based tool for classifying enriched gene sets into higher-level biological categories (e.g., “immune,” “repair”). It reduces redundancy and improves interpretability of GSEA outputs across transcriptomic (bulk, single-cell, spatial) comparisons.
-
+## Goals
 - **Input**: Gene set names (e.g., `"interferon gamma signaling"`)
 - **Task**: Multi-class classification
-- **Output**: High-level functional labels like `"immune"` or `"cell cycle"`
+- **Output**: High-level functional themes like `"immune"` or `"cell cycle"`
 
 | Example Token                  | Predicted Category |
 |-------------------------------|---------------------|
@@ -17,7 +17,6 @@ GSEA-refiner is a Python/transformer-based tool for classifying enriched gene se
 ---
 
 ## Labeled Training Data
-
 Pathway–category label pairs were curated using keyword-based rules. This was adapted from gsea-squared method described in co-authored publication [Balanis, Sheu, Esedebe et al., 2019](https://doi.org/10.1016/j.ccell.2019.06.005), where pathway keywords were grouped into biological themes for SCN profiling.
 
 - **Sources**: Pathway names from tools like GSEA (e.g., `"REACTOME_DNA_REPAIR"`)
@@ -27,16 +26,9 @@ Pathway–category label pairs were curated using keyword-based rules. This was 
   - `"cycle"` → `CELL_CYCLE|MITOSIS|DIVISION`
 
 These labels were used to supervise initial model training.
-
-```python
-("REACTOME_INTERFERON_SIGNALING", "immune")
-("REACTOME_HOMOLOGOUS_RECOMBINATION", "repair")
-```
-
 ---
 
-## Model Training (BioBERT Fine-Tuning)
-
+## Model Training
 Next, BioBERT was fine-tuned for pathway name classification.
 
 - **Base model**: `dmis-lab/biobert-base-cased-v1.1`
@@ -47,30 +39,21 @@ Next, BioBERT was fine-tuned for pathway name classification.
 
 - **Evaluation**:
   - 5-fold stratified cross-validation
-  - Macro-F1: ~0.80, Accuracy: ~0.82
+  - Final model: Partial fine-tuned BioBERT (Macro-F1: 0.81)
 
 ---
 
-## Baseline Comparison
-
+## Benchmarking
 | Method                         | Macro-F1 |
 |--------------------------------|----------|
-| TF-IDF + Logistic Regression   | ~0.68    |
-| GloVe + K-means                | Noisy    |
+| TF-IDF + Logistic Regression   | 0.45    |
+| GloVe + BiLSTM                 | 0.65    |
+| DistilBERT                     | 0.75    |
+| BioBERT (Full fine tuning)     | 0.77    |
 
 ---
 
-## Future Work
-
-- Try contrastive loss or RAG-based summarization
-- Build a web UI for fast enrichment interpretation
-
----
-
-## File Structure
-
-```
-categorization/   # Rule-based labeling, transformer classification
-preprocessing/    # Token filtering, weighting
-visualization/    # Plotting utilities
-```
+## Future Directions
+- Benchmark other biomedical LLMs (SciBERT, PubMedBERT) or multi-omics embeddings to improve classification.
+- Use generative models (GPT) to propose new category groupings beyond training data.
+- Incorporate retrieval-augmented classification to pull descriptions from external pathway databases.
