@@ -166,6 +166,7 @@ cython_debug/
 data/
 figures/
 .vscode/
+plans/
 
 # Ignore macOS system files
 .DS_Store
