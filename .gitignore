@@ -167,6 +167,7 @@ data/
 figures/
 .vscode/
 plans/
+.claude/
 
 # Ignore macOS system files
 .DS_Store
