@@ -1,7 +1,4 @@
-"""GSEA-squared pipeline (Balanis et al. 2019): regex-label pathways, then run
-rank-based KS enrichment per category. The enrichment step is generic and is
-also reused with transformer-predicted categories (see Phase 4).
-"""
+#GSEA-squared pipeline (Balanis et al. 2019): regex-label pathways, then runKS enrichment per category.
 
 import pandas as pd
 

@@ -1,6 +1,8 @@
 import os
-from gsea_refiner.preprocessing.tokenize import process_and_save_corpus
+
 from gsea_refiner.preprocessing.filter import filter_and_weight_pathways
+from gsea_refiner.preprocessing.tokenize import process_and_save_corpus
+
 
 def filter_pathways(input_file, output_dir):
     filtered_output = os.path.join(output_dir, "filtered_pathways.csv")
@@ -17,7 +19,7 @@ def filter_pathways(input_file, output_dir):
 
     return filtered_output
 
-def run_preprocessing_pipeline(input_file: str, output_dir: str, 
+def run_preprocessing_pipeline(input_file: str, output_dir: str,
                                filter_pathways_flag: bool = True, save_json: bool = False):
     os.makedirs(output_dir, exist_ok=True)
 
@@ -28,7 +30,7 @@ def run_preprocessing_pipeline(input_file: str, output_dir: str,
 
     # Process filtered corpus
     if filter_pathways_flag:
-        filtered_input = filter_pathways(input_file, output_dir) 
+        filtered_input = filter_pathways(input_file, output_dir)
         txt_filtered_output = os.path.join(output_dir, "corpus_filtered.txt")
         json_filtered_output = os.path.join(output_dir, "corpus_filtered.json") if save_json else None
         process_and_save_corpus(filtered_input, txt_filtered_output, json_filtered_output)
@@ -38,5 +40,5 @@ def run_preprocessing_pipeline(input_file: str, output_dir: str,
 if __name__ == "__main__":
     input_file = "data/input/gsea_scn.txt"
     output_dir = "data/intermediate/"
-    
+
     run_preprocessing_pipeline(input_file, output_dir, filter_pathways_flag=True, save_json=False)

@@ -1,6 +1,8 @@
 import pandas as pd
-from gsea_refiner.preprocessing.clean import clean_gene_set_name
+
 from gsea_refiner.labeling.regex import label_pathways_by_regex
+from gsea_refiner.preprocessing.clean import clean_gene_set_name
+
 
 def main():
     input_file = "data/input/gsea_scn.txt"

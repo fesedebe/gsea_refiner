@@ -170,6 +170,9 @@ plans/
 .claude/
 CLAUDE.md
 
+# Models (large checkpoints)
+models/
+
 # Ignore system files
 .DS_Store
 results/.DS_Store

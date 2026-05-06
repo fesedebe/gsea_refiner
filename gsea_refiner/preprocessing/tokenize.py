@@ -1,18 +1,20 @@
-import pandas as pd
-import re
 import json
-import os
+import re
 from typing import List, Optional, Set
+
+import pandas as pd
+
 from gsea_refiner.io import read_file
 from gsea_refiner.preprocessing.clean import clean_gene_set_name
+
 
 #1. Extract & clean gene set names
 def extract_gene_set_names(file_path: str) -> List[str]:
     df = read_file(file_path)
-    
+
     if 'pathway' not in df.columns:
         raise ValueError("Input file must contain a 'pathway' column.")
-    
+
     return df['pathway'].tolist()
 
 def process_gene_set_names(file_path: str) -> List[str]:

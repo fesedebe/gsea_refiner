@@ -6,8 +6,8 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
 
-from gsea_refiner.preprocessing.clean import clean_gene_set_name
 from gsea_refiner.labeling.regex import label_pathways_by_regex
+from gsea_refiner.preprocessing.clean import clean_gene_set_name
 
 DEFAULT_KEYWORDS_PATH = Path("data/config/category_keywords.csv")
 
