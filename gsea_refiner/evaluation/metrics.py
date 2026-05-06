@@ -42,3 +42,39 @@ def evaluate(
         ).tolist(),
         "matrix_labels": matrix_labels,
     }
+
+
+def evaluate_other_detection(
+    y_true: List[str],
+    y_pred: List[str],
+    other_label: str = "Other",
+) -> Dict:
+    """Evaluate threshold-based 'Other' detection.
+
+    Returns other_detection_rate (true Others correctly filtered) and
+    false_other_rate (real category members incorrectly assigned Other).
+    """
+    true_is_other = [t == other_label for t in y_true]
+    pred_is_other = [p == other_label for p in y_pred]
+
+    n_true_other = sum(true_is_other)
+    n_true_category = len(y_true) - n_true_other
+
+    correct_other = sum(
+        1 for t, p in zip(true_is_other, pred_is_other) if t and p
+    )
+    false_other = sum(
+        1 for t, p in zip(true_is_other, pred_is_other) if not t and p
+    )
+
+    other_detection_rate = correct_other / n_true_other if n_true_other > 0 else 0.0
+    false_other_rate = false_other / n_true_category if n_true_category > 0 else 0.0
+
+    return {
+        "other_detection_rate": other_detection_rate,
+        "false_other_rate": false_other_rate,
+        "n_true_other": n_true_other,
+        "n_correct_other": correct_other,
+        "n_true_category": n_true_category,
+        "n_false_other": false_other,
+    }

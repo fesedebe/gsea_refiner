@@ -56,3 +56,25 @@ def get_train_test_blind_split(
     pool = pool[~pool["pathway"].isin(set(blind["pathway"]))].reset_index(drop=True)
     train, matched_test = stratified_split(pool, test_size=test_size, seed=seed)
     return train, matched_test, blind
+
+
+def get_other_calibration_eval_split(
+    pool_path: Path = DEFAULT_DATA_PATH,
+    blind_path: Path = DEFAULT_BLIND_PATH,
+    seed: int = 42,
+) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """Split 'Other' examples 50/50 into calibration and evaluation sets.
+
+    Returns (calibration_df, evaluation_df). Blind pathways are excluded
+    so the same pathways aren't used for both blind-test and calibration.
+    """
+    pool = load_full_pool(pool_path)
+    blind = load_blind_set(blind_path)
+    pool = pool[~pool["pathway"].isin(set(blind["pathway"]))].reset_index(drop=True)
+
+    others = pool[pool["label"] == "Other"].reset_index(drop=True)
+    shuffled = others.sample(frac=1.0, random_state=seed).reset_index(drop=True)
+    midpoint = len(shuffled) // 2
+    calibration = shuffled.iloc[:midpoint].reset_index(drop=True)
+    evaluation = shuffled.iloc[midpoint:].reset_index(drop=True)
+    return calibration, evaluation
