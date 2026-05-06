@@ -168,9 +168,11 @@ figures/
 .vscode/
 plans/
 .claude/
+CLAUDE.md
 
-# Ignore macOS system files
+# Ignore system files
 .DS_Store
 results/.DS_Store
 scripts/.DS_Store
 scripts/analysis/.DS_Store
+.python-version
