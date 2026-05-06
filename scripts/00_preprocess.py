@@ -1,6 +1,6 @@
 import os
-from gsea_refiner.preprocessing.tokenize_corpus import process_and_save_corpus
-from gsea_refiner.preprocessing.filter_and_weight import filter_and_weight_pathways
+from gsea_refiner.preprocessing.tokenize import process_and_save_corpus
+from gsea_refiner.preprocessing.filter import filter_and_weight_pathways
 
 def filter_pathways(input_file, output_dir):
     filtered_output = os.path.join(output_dir, "filtered_pathways.csv")

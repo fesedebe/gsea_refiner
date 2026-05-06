@@ -3,7 +3,8 @@ import re
 import json
 import os
 from typing import List, Optional, Set
-from gsea_refiner.utils import read_file, clean_gene_set_name
+from gsea_refiner.io import read_file
+from gsea_refiner.preprocessing.clean import clean_gene_set_name
 
 #1. Extract & clean gene set names
 def extract_gene_set_names(file_path: str) -> List[str]:

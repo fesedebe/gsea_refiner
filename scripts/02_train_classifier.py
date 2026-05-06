@@ -1,4 +1,4 @@
-from gsea_refiner.categorization.fine_tune_transformer import fine_tune_biobert
+from gsea_refiner.classification.train import fine_tune_biobert
 
 def main():
     input_csv = "data/training/labeled_pathways.csv"

@@ -21,7 +21,7 @@ from gsea_refiner.evaluation.baselines import (
     make_regex_predictor,
     make_tfidf_logreg_predictor,
 )
-from gsea_refiner.evaluation.benchmark import evaluate
+from gsea_refiner.evaluation.metrics import evaluate
 from gsea_refiner.evaluation.split import get_train_test_blind_split
 
 

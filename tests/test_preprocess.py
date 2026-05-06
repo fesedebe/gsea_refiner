@@ -1,6 +1,6 @@
 import pytest
-from gsea_refiner.utils import clean_gene_set_name
-from gsea_refiner.preprocessing.tokenize_corpus import tokenize_name, tokenize_corpus
+from gsea_refiner.preprocessing.clean import clean_gene_set_name
+from gsea_refiner.preprocessing.tokenize import tokenize_name, tokenize_corpus
 
 def test_clean_gene_set_names():
     raw_names = ["GO_CELL_CYCLE", "REACTOME_ATP_HYDROLYSIS"]

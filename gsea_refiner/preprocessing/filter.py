@@ -1,6 +1,6 @@
 import pandas as pd
-from gsea_refiner.utils import read_file
-from gsea_refiner.preprocessing.tokenize_corpus import process_and_save_corpus
+from gsea_refiner.io import read_file
+from gsea_refiner.preprocessing.tokenize import process_and_save_corpus
 
 def filter_and_weight_pathways(input_file, output_filtered, output_weighted, nes_col="NES", pathway_col="pathway", 
     pval_col="padj", nes_threshold=2.2, pval_threshold=0.0000005)-> None:
