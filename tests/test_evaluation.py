@@ -1,9 +1,17 @@
+from pathlib import Path
+
 import pandas as pd
+import pytest
 
 from gsea_refiner.evaluation.metrics import evaluate, evaluate_other_detection
 from gsea_refiner.evaluation.split import (
+    DEFAULT_DATA_PATH,
     get_other_calibration_eval_split,
     get_train_test_blind_split,
+)
+
+needs_data = pytest.mark.skipif(
+    not Path(DEFAULT_DATA_PATH).exists(), reason="training data not available"
 )
 
 
@@ -51,6 +59,7 @@ def test_evaluate_other_detection_metrics():
     assert result["false_other_rate"] == 1 / 2
 
 
+@needs_data
 def test_train_test_blind_split_no_overlap():
     train, matched, blind = get_train_test_blind_split()
     train_paths = set(train["pathway"])
@@ -62,6 +71,7 @@ def test_train_test_blind_split_no_overlap():
     assert len(matched_paths & blind_paths) == 0
 
 
+@needs_data
 def test_other_calibration_eval_split_invariants():
     cal, evl = get_other_calibration_eval_split()
 
