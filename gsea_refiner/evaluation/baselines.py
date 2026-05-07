@@ -1,5 +1,5 @@
 from pathlib import Path
-from typing import Callable, List
+from typing import Callable, List, Optional
 
 import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -64,5 +64,55 @@ def make_tfidf_logreg_predictor(
     def predict(pathways: List[str]) -> List[str]:
         X = [clean_gene_set_name(p) for p in pathways]
         return pipeline.predict(X).tolist()
+
+    return predict
+
+
+def make_transformer_predictor(
+    model_dir: str,
+    confidence_threshold: Optional[float] = None,
+    temperature: float = 1.0,
+    max_length: int = 48,
+    batch_size: int = 64,
+) -> Predictor:
+    import json
+
+    import torch
+    from torch.nn.functional import softmax
+    from transformers import AutoModelForSequenceClassification, AutoTokenizer
+
+    tokenizer = AutoTokenizer.from_pretrained(model_dir)
+    model = AutoModelForSequenceClassification.from_pretrained(model_dir)
+    model.eval()
+
+    cal_path = Path(model_dir) / "calibration.json"
+    if cal_path.exists():
+        with open(cal_path) as f:
+            cal = json.load(f)
+        if confidence_threshold is None and "threshold" in cal:
+            confidence_threshold = cal["threshold"]
+        if temperature == 1.0 and "temperature" in cal:
+            temperature = cal["temperature"]
+
+    def predict(pathways: List[str]) -> List[str]:
+        cleaned = [clean_gene_set_name(p) for p in pathways]
+        labels = []
+        with torch.no_grad():
+            for i in range(0, len(cleaned), batch_size):
+                batch = cleaned[i : i + batch_size]
+                inputs = tokenizer(
+                    batch, return_tensors="pt", truncation=True,
+                    padding=True, max_length=max_length,
+                )
+                logits = model(**inputs).logits / temperature
+                probs = softmax(logits, dim=1)
+                for j in range(probs.shape[0]):
+                    idx = torch.argmax(probs[j]).item()
+                    label = model.config.id2label[idx]
+                    conf = probs[j, idx].item()
+                    if confidence_threshold is not None and conf < confidence_threshold:
+                        label = "Other"
+                    labels.append(label)
+        return labels
 
     return predict

@@ -20,6 +20,7 @@ import pandas as pd
 from gsea_refiner.evaluation.baselines import (
     make_regex_predictor,
     make_tfidf_logreg_predictor,
+    make_transformer_predictor,
 )
 from gsea_refiner.evaluation.metrics import evaluate
 from gsea_refiner.evaluation.split import get_train_test_blind_split
@@ -45,6 +46,8 @@ def main():
     parser.add_argument("--blind", default="data/gold/others_reviewed.csv")
     parser.add_argument("--keywords", default="data/config/category_keywords.csv")
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--model-dir", default="data/models",
+                        help="Parent dir containing trained model subdirectories")
     parser.add_argument("--output", default="data/output/benchmark_results.csv")
     parser.add_argument("--details", default="data/output/benchmark_details.json")
     args = parser.parse_args()
@@ -64,6 +67,12 @@ def main():
         "regex_gsea_sq": make_regex_predictor(keywords_path=args.keywords),
         "tfidf_logreg": make_tfidf_logreg_predictor(train_df, seed=args.seed),
     }
+
+    model_dir = Path(args.model_dir)
+    for name in sorted(model_dir.iterdir()):
+        final = name / "final"
+        if final.is_dir() and (final / "config.json").exists():
+            methods[name.name] = make_transformer_predictor(str(final))
 
     slices = {"matched": matched_test_df, "blind": blind_df}
 
