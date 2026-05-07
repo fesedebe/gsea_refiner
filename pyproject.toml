@@ -12,6 +12,7 @@ dependencies = [
     "scikit-learn>=1.8",
     "scipy>=1.17",
     "seaborn>=0.13",
+    "sentencepiece>=0.2.1",
 ]
 
 [project.optional-dependencies]

@@ -11,6 +11,7 @@ from sklearn.model_selection import StratifiedKFold
 from transformers import (
     AutoModelForSequenceClassification,
     AutoTokenizer,
+    BertTokenizer,
     DataCollatorWithPadding,
     EarlyStoppingCallback,
     Trainer,
@@ -193,9 +194,16 @@ def _train_one(
     return trainer
 
 
+def _load_tokenizer(model_id):
+    try:
+        return AutoTokenizer.from_pretrained(model_id)
+    except ValueError:
+        return BertTokenizer.from_pretrained(model_id)
+
+
 def _run_lr_sweep(model_name, model_id, df, label2id, id2label, class_weights, lr_candidates,
                   model_out_dir, seed):
-    tokenizer = AutoTokenizer.from_pretrained(model_id)
+    tokenizer = _load_tokenizer(model_id)
     skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=seed)
 
     lr_results = {}
