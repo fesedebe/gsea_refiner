@@ -32,8 +32,14 @@ N_FOLDS = 5
 SEED = 42
 LR_CANDIDATES = [1e-5, 2e-5, 5e-5]
 
-DEFAULT_MODEL = "dmis-lab/biobert-base-cased-v1.1"
-DEFAULT_OUTPUT_DIR = "data/models/biobert_finetuned"
+MODELS = {
+    "biomedbert": "microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext",
+    "biobert": "dmis-lab/biobert-base-cased-v1.1",
+    "scibert": "allenai/scibert_scivocab_uncased",
+}
+
+DEFAULT_MODELS = ["biomedbert", "biobert"]
+DEFAULT_OUTPUT_DIR = "data/models"
 
 
 def prepare_data(df: pd.DataFrame):
@@ -126,7 +132,7 @@ def _make_dataset(df_slice, tokenizer):
 
 
 def _train_one(
-    model_name,
+    model_id,
     tokenizer,
     train_ds,
     val_ds,
@@ -139,7 +145,7 @@ def _train_one(
 ):
     num_labels = len(label2id)
     model = AutoModelForSequenceClassification.from_pretrained(
-        model_name,
+        model_id,
         num_labels=num_labels,
         id2label=id2label,
         label2id=label2id,
@@ -177,7 +183,7 @@ def _train_one(
         args=training_args,
         train_dataset=train_ds,
         eval_dataset=val_ds,
-        tokenizer=tokenizer,
+        processing_class=tokenizer,
         data_collator=DataCollatorWithPadding(tokenizer=tokenizer),
         compute_metrics=compute_metrics,
         callbacks=callbacks,
@@ -187,48 +193,29 @@ def _train_one(
     return trainer
 
 
-def fine_tune_biobert(
-    model_name=DEFAULT_MODEL,
-    model_out_dir=DEFAULT_OUTPUT_DIR,
-    lr_candidates=None,
-    seed=SEED,
-):
-    if lr_candidates is None:
-        lr_candidates = LR_CANDIDATES
-
-    train_df, _, _ = get_train_test_blind_split(seed=seed)
-    df, label2id, id2label = prepare_data(train_df)
-    num_labels = len(label2id)
-
-    print(f"Training data: {len(df)} examples, {num_labels} classes (Other excluded)")
-    for label, count in sorted(Counter(df["label"].tolist()).items()):
-        print(f"  {label:25s}: {count}")
-
-    tokenizer = AutoTokenizer.from_pretrained(model_name)
-    class_weights = compute_class_weights(df["label_id"].tolist(), num_labels)
+def _run_lr_sweep(model_name, model_id, df, label2id, id2label, class_weights, lr_candidates,
+                  model_out_dir, seed):
+    tokenizer = AutoTokenizer.from_pretrained(model_id)
     skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=seed)
 
-    # --- LR sweep via CV ---
     lr_results = {}
     for lr in lr_candidates:
-        print(f"\n{'=' * 50}")
-        print(f"LR sweep: lr={lr}")
-        print(f"{'=' * 50}")
+        print(f"\n  LR sweep: lr={lr}")
 
         fold_scores = []
         for fold, (train_idx, val_idx) in enumerate(
             skf.split(df["pathway_clean"], df["label_id"])
         ):
-            print(f"  Fold {fold + 1}/{N_FOLDS}")
+            print(f"    Fold {fold + 1}/{N_FOLDS}")
 
             train_ds = _make_dataset(df.iloc[train_idx], tokenizer)
             val_ds = _make_dataset(df.iloc[val_idx], tokenizer)
 
-            fold_dir = os.path.join(model_out_dir, f"cv_lr_{lr}", f"fold_{fold}")
+            fold_dir = os.path.join(model_out_dir, model_name, f"cv_lr_{lr}", f"fold_{fold}")
             curve_logger = TrainingCurveLogger()
 
             trainer = _train_one(
-                model_name=model_name,
+                model_id=model_id,
                 tokenizer=tokenizer,
                 train_ds=train_ds,
                 val_ds=val_ds,
@@ -243,22 +230,22 @@ def fine_tune_biobert(
             val_results = trainer.evaluate()
             fold_f1 = val_results["eval_f1"]
             fold_scores.append(fold_f1)
-            print(f"    fold {fold + 1}: macro F1 = {fold_f1:.4f}")
+            print(f"      fold {fold + 1}: macro F1 = {fold_f1:.4f}")
 
             curve_logger.save(os.path.join(fold_dir, "training_curve.csv"))
 
         mean_f1 = np.mean(fold_scores)
         std_f1 = np.std(fold_scores)
         lr_results[lr] = {"mean_f1": mean_f1, "std_f1": std_f1, "folds": fold_scores}
-        print(f"  lr={lr}: {mean_f1:.4f} +/- {std_f1:.4f}")
+        print(f"    lr={lr}: {mean_f1:.4f} +/- {std_f1:.4f}")
 
-    best_lr = max(lr_results, key=lambda lr: lr_results[lr]["mean_f1"])
-    print(f"\nBest LR: {best_lr} ({lr_results[best_lr]['mean_f1']:.4f} +/- {lr_results[best_lr]['std_f1']:.4f})")
+    return tokenizer, lr_results
 
-    # --- Retrain on full training set with best LR ---
-    print(f"\nRetraining on full training set with lr={best_lr}...")
 
-    # Use 10% of data as a validation proxy for early stopping
+def _retrain_final(model_name, model_id, tokenizer, df, label2id, id2label, class_weights,
+                   best_lr, model_out_dir, seed):
+    print(f"\n  Retraining {model_name} on full training set with lr={best_lr}...")
+
     n_val = max(1, int(len(df) * 0.1))
     val_indices = df.sample(n=n_val, random_state=seed).index
     train_indices = df.index.difference(val_indices)
@@ -266,11 +253,11 @@ def fine_tune_biobert(
     final_train_ds = _make_dataset(df.iloc[train_indices], tokenizer)
     final_val_ds = _make_dataset(df.iloc[val_indices], tokenizer)
 
-    final_dir = os.path.join(model_out_dir, "final")
+    final_dir = os.path.join(model_out_dir, model_name, "final")
     curve_logger = TrainingCurveLogger()
 
     trainer = _train_one(
-        model_name=model_name,
+        model_id=model_id,
         tokenizer=tokenizer,
         train_ds=final_train_ds,
         val_ds=final_val_ds,
@@ -286,37 +273,132 @@ def fine_tune_biobert(
     tokenizer.save_pretrained(final_dir)
     curve_logger.save(os.path.join(final_dir, "training_curve.csv"))
 
-    # Save metadata
-    metadata = {
-        "model_name": model_name,
-        "best_lr": best_lr,
-        "num_labels": num_labels,
-        "label2id": label2id,
-        "id2label": {str(k): v for k, v in id2label.items()},
-        "lr_sweep": {
-            str(lr): {
-                "mean_f1": r["mean_f1"],
-                "std_f1": r["std_f1"],
-                "folds": r["folds"],
-            }
-            for lr, r in lr_results.items()
-        },
-        "config": {
-            "max_length": MAX_LENGTH,
-            "freeze_until": FREEZE_UNTIL,
-            "num_epochs": NUM_EPOCHS,
-            "early_stopping_patience": EARLY_STOPPING_PATIENCE,
-            "warmup_ratio": WARMUP_RATIO,
-            "weight_decay": WEIGHT_DECAY,
-            "batch_size": BATCH_SIZE,
-            "n_folds": N_FOLDS,
-            "seed": seed,
-        },
-    }
-    with open(os.path.join(final_dir, "training_metadata.json"), "w") as f:
-        json.dump(metadata, f, indent=2)
+    return final_dir
 
-    print(f"\nFinal model saved to {final_dir}")
-    print(f"LR sweep results and config saved to {final_dir}/training_metadata.json")
 
-    return lr_results, best_lr
+def fine_tune(
+    model_names=None,
+    model_out_dir=DEFAULT_OUTPUT_DIR,
+    lr_candidates=None,
+    seed=SEED,
+):
+    if model_names is None:
+        model_names = DEFAULT_MODELS
+    if lr_candidates is None:
+        lr_candidates = LR_CANDIDATES
+
+    train_df, _, _ = get_train_test_blind_split(seed=seed)
+    df, label2id, id2label = prepare_data(train_df)
+    num_labels = len(label2id)
+
+    print(f"Training data: {len(df)} examples, {num_labels} classes (Other excluded)")
+    for label, count in sorted(Counter(df["label"].tolist()).items()):
+        print(f"  {label:25s}: {count}")
+
+    class_weights = compute_class_weights(df["label_id"].tolist(), num_labels)
+
+    all_results = {}
+
+    for model_name in model_names:
+        model_id = MODELS[model_name]
+        print(f"\n{'=' * 60}")
+        print(f"{model_name} ({model_id})")
+        print(f"{'=' * 60}")
+
+        tokenizer, lr_results = _run_lr_sweep(
+            model_name=model_name,
+            model_id=model_id,
+            df=df,
+            label2id=label2id,
+            id2label=id2label,
+            class_weights=class_weights,
+            lr_candidates=lr_candidates,
+            model_out_dir=model_out_dir,
+            seed=seed,
+        )
+
+        best_lr = max(lr_results, key=lambda lr: lr_results[lr]["mean_f1"])
+        print(f"\n  Best LR for {model_name}: {best_lr} "
+              f"({lr_results[best_lr]['mean_f1']:.4f} +/- {lr_results[best_lr]['std_f1']:.4f})")
+
+        final_dir = _retrain_final(
+            model_name=model_name,
+            model_id=model_id,
+            tokenizer=tokenizer,
+            df=df,
+            label2id=label2id,
+            id2label=id2label,
+            class_weights=class_weights,
+            best_lr=best_lr,
+            model_out_dir=model_out_dir,
+            seed=seed,
+        )
+
+        metadata = {
+            "model_name": model_name,
+            "model_id": model_id,
+            "best_lr": best_lr,
+            "num_labels": num_labels,
+            "label2id": label2id,
+            "id2label": {str(k): v for k, v in id2label.items()},
+            "lr_sweep": {
+                str(lr): {
+                    "mean_f1": r["mean_f1"],
+                    "std_f1": r["std_f1"],
+                    "folds": r["folds"],
+                }
+                for lr, r in lr_results.items()
+            },
+            "config": {
+                "max_length": MAX_LENGTH,
+                "freeze_until": FREEZE_UNTIL,
+                "num_epochs": NUM_EPOCHS,
+                "early_stopping_patience": EARLY_STOPPING_PATIENCE,
+                "warmup_ratio": WARMUP_RATIO,
+                "weight_decay": WEIGHT_DECAY,
+                "batch_size": BATCH_SIZE,
+                "n_folds": N_FOLDS,
+                "seed": seed,
+            },
+        }
+        with open(os.path.join(final_dir, "training_metadata.json"), "w") as f:
+            json.dump(metadata, f, indent=2)
+
+        all_results[model_name] = {
+            "model_id": model_id,
+            "best_lr": best_lr,
+            "lr_results": lr_results,
+            "final_dir": final_dir,
+        }
+
+        print(f"  Final model saved to {final_dir}")
+
+    summary = []
+    for name, res in all_results.items():
+        best = res["lr_results"][res["best_lr"]]
+        summary.append({
+            "model": name,
+            "model_id": res["model_id"],
+            "best_lr": res["best_lr"],
+            "mean_f1": best["mean_f1"],
+            "std_f1": best["std_f1"],
+            **{f"fold_{i}_f1": s for i, s in enumerate(best["folds"])},
+        })
+
+    summary_df = pd.DataFrame(summary)
+    summary_path = os.path.join(model_out_dir, "model_comparison.csv")
+    os.makedirs(model_out_dir, exist_ok=True)
+    summary_df.to_csv(summary_path, index=False)
+
+    print(f"\n{'=' * 60}")
+    print("SUMMARY")
+    print(f"{'=' * 60}")
+    for row in summary:
+        print(f"  {row['model']:12s} lr={row['best_lr']:.0e}: "
+              f"{row['mean_f1']:.4f} +/- {row['std_f1']:.4f}")
+
+    winner = max(summary, key=lambda r: r["mean_f1"])
+    print(f"\nBest model: {winner['model']} ({winner['mean_f1']:.4f} +/- {winner['std_f1']:.4f})")
+    print(f"Comparison saved to {summary_path}")
+
+    return all_results
