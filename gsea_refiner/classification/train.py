@@ -11,6 +11,7 @@ from sklearn.model_selection import StratifiedKFold
 from transformers import (
     AutoModelForSequenceClassification,
     AutoTokenizer,
+    BertForSequenceClassification,
     BertTokenizer,
     DataCollatorWithPadding,
     EarlyStoppingCallback,
@@ -39,7 +40,7 @@ MODELS = {
     "scibert": "allenai/scibert_scivocab_uncased",
 }
 
-DEFAULT_MODELS = ["biomedbert", "biobert"]
+DEFAULT_MODELS = ["biomedbert"]
 DEFAULT_OUTPUT_DIR = "data/models"
 
 
@@ -145,12 +146,20 @@ def _train_one(
     curve_logger=None,
 ):
     num_labels = len(label2id)
-    model = AutoModelForSequenceClassification.from_pretrained(
-        model_id,
-        num_labels=num_labels,
-        id2label=id2label,
-        label2id=label2id,
-    )
+    try:
+        model = AutoModelForSequenceClassification.from_pretrained(
+            model_id,
+            num_labels=num_labels,
+            id2label=id2label,
+            label2id=label2id,
+        )
+    except ValueError:
+        model = BertForSequenceClassification.from_pretrained(
+            model_id,
+            num_labels=num_labels,
+            id2label=id2label,
+            label2id=label2id,
+        )
     freeze_bert_layers(model)
 
     WeightedTrainer = make_weighted_trainer_cls(class_weights)
@@ -380,33 +389,5 @@ def fine_tune(
         }
 
         print(f"  Final model saved to {final_dir}")
-
-    summary = []
-    for name, res in all_results.items():
-        best = res["lr_results"][res["best_lr"]]
-        summary.append({
-            "model": name,
-            "model_id": res["model_id"],
-            "best_lr": res["best_lr"],
-            "mean_f1": best["mean_f1"],
-            "std_f1": best["std_f1"],
-            **{f"fold_{i}_f1": s for i, s in enumerate(best["folds"])},
-        })
-
-    summary_df = pd.DataFrame(summary)
-    summary_path = os.path.join(model_out_dir, "model_comparison.csv")
-    os.makedirs(model_out_dir, exist_ok=True)
-    summary_df.to_csv(summary_path, index=False)
-
-    print(f"\n{'=' * 60}")
-    print("SUMMARY")
-    print(f"{'=' * 60}")
-    for row in summary:
-        print(f"  {row['model']:12s} lr={row['best_lr']:.0e}: "
-              f"{row['mean_f1']:.4f} +/- {row['std_f1']:.4f}")
-
-    winner = max(summary, key=lambda r: r["mean_f1"])
-    print(f"\nBest model: {winner['model']} ({winner['mean_f1']:.4f} +/- {winner['std_f1']:.4f})")
-    print(f"Comparison saved to {summary_path}")
 
     return all_results
