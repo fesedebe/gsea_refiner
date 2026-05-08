@@ -69,7 +69,7 @@ def main():
     }
 
     model_dir = Path(args.model_dir)
-    for name in sorted(model_dir.iterdir()):
+    for name in sorted(model_dir.iterdir()) if model_dir.is_dir() else []:
         final = name / "final"
         if final.is_dir() and (final / "config.json").exists():
             methods[name.name] = make_transformer_predictor(str(final))
