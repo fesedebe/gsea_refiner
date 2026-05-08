@@ -3,7 +3,7 @@ name = "gsea-refiner"
 version = "1.0.0"
 description = "Supervised classification layer for gene-set to functional category mapping"
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.11"
 dependencies = [
     "matplotlib>=3.10",
     "numpy>=2.4",
@@ -38,3 +38,11 @@ packages = ["gsea_refiner"]
 dev = [
     "ruff>=0.15.12",
 ]
+
+[[tool.uv.index]]
+name = "pytorch-cu126"
+url = "https://download.pytorch.org/whl/cu126"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu126" }
