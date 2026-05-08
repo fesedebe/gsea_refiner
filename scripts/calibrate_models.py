@@ -19,7 +19,7 @@ from gsea_refiner.evaluation.split import (
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model-dir", default="data/models")
-    parser.add_argument("--pool", default="data/training/labeled_pathways_UAP.csv")
+    parser.add_argument("--pool", default="data/processed/pathwaysUAP_full.csv")
     parser.add_argument("--blind", default="data/gold/others_reviewed.csv")
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument(

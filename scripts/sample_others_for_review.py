@@ -14,7 +14,7 @@ from pathlib import Path
 
 import pandas as pd
 
-DEFAULT_INPUT = Path("data/training/labeled_pathways_UAP.csv")
+DEFAULT_INPUT = Path("data/processed/pathwaysUAP_full.csv")
 DEFAULT_OUTPUT = Path("data/gold/others_to_review.csv")
 VALID_CATEGORIES = [
     "immune",

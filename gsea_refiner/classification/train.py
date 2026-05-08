@@ -47,7 +47,7 @@ MODELS = {
 DEFAULT_MODELS = ["biomedbert"]
 DEFAULT_OUTPUT_DIR = "data/models"
 DEFAULT_CLEAN_MODEL_DIR = "data/models/biomedbert/final"
-CLEANED_OTHERS_CACHE = "data/training/cleaned_others.csv"
+CLEANED_OTHERS_CACHE = "data/processed/cleaned_others.csv"
 
 
 def prepare_data(

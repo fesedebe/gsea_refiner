@@ -4,7 +4,7 @@ from typing import Tuple
 import pandas as pd
 from sklearn.model_selection import train_test_split
 
-DEFAULT_DATA_PATH = Path("data/training/labeled_pathways_UAP.csv")
+DEFAULT_DATA_PATH = Path("data/processed/pathwaysUAP_full.csv")
 DEFAULT_BLIND_PATH = Path("data/gold/others_reviewed.csv")
 
 

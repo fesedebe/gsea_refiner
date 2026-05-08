@@ -6,19 +6,13 @@ from sklearn.metrics import accuracy_score, confusion_matrix, f1_score
 Predictor = Callable[[List[str]], List[str]]
 
 
-def evaluate(
-    predictor: Predictor,
-    gold_df: pd.DataFrame,
-    pathway_col: str = "pathway",
-    label_col: str = "label",
+def evaluate_from_predictions(
+    y_true: List[str],
+    y_pred: List[str],
 ) -> Dict:
-    pathways = gold_df[pathway_col].tolist()
-    y_true = gold_df[label_col].tolist()
-    y_pred = predictor(pathways)
-
     if len(y_pred) != len(y_true):
         raise ValueError(
-            f"Predictor returned {len(y_pred)} labels for {len(y_true)} inputs"
+            f"Got {len(y_pred)} predictions for {len(y_true)} ground-truth labels"
         )
 
     true_labels = sorted(set(y_true))
@@ -42,6 +36,18 @@ def evaluate(
         ).tolist(),
         "matrix_labels": matrix_labels,
     }
+
+
+def evaluate(
+    predictor: Predictor,
+    gold_df: pd.DataFrame,
+    pathway_col: str = "pathway",
+    label_col: str = "label",
+) -> Dict:
+    pathways = gold_df[pathway_col].tolist()
+    y_true = gold_df[label_col].tolist()
+    y_pred = predictor(pathways)
+    return evaluate_from_predictions(y_true, y_pred)
 
 
 def evaluate_other_detection(

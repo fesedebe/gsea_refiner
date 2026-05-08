@@ -7,7 +7,7 @@ from gsea_refiner.preprocessing.clean import clean_gene_set_name
 def main():
     input_file = "data/input/gsea_scn.txt"
     catmap_file = "data/config/category_keywords.csv"
-    output_file = "data/training/labeled_pathways.csv"
+    output_file = "data/processed/labeled_pathways.csv"
 
     df = pd.read_csv(input_file, sep="\t")
     df['pathway'] = df['pathway'].apply(clean_gene_set_name)
