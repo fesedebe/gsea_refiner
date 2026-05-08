@@ -153,3 +153,34 @@ def make_transformer_predictor(
         return labels
 
     return predict
+
+
+def make_zero_shot_predictor(
+    confidence_threshold: float = 0.5,
+    keywords_path: Path = DEFAULT_KEYWORDS_PATH,
+    batch_size: int = 16,
+    classifier=None,
+) -> Predictor:
+    from transformers import pipeline as hf_pipeline
+
+    candidate_labels = pd.read_csv(keywords_path)["Category"].tolist()
+
+    if classifier is None:
+        classifier = hf_pipeline(
+            "zero-shot-classification", model="facebook/bart-large-mnli"
+        )
+
+    def predict(pathways: List[str]) -> List[str]:
+        cleaned = [clean_gene_set_name(p) for p in pathways]
+        results = classifier(cleaned, candidate_labels, batch_size=batch_size)
+        if isinstance(results, dict):
+            results = [results]
+        labels = []
+        for r in results:
+            if r["scores"][0] >= confidence_threshold:
+                labels.append(r["labels"][0])
+            else:
+                labels.append("Other")
+        return labels
+
+    return predict

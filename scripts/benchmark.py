@@ -4,15 +4,18 @@ import argparse
 import json
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from gsea_refiner.evaluation.baselines import (
     make_regex_predictor,
     make_tfidf_logreg_predictor,
     make_transformer_predictor,
+    make_zero_shot_predictor,
 )
 from gsea_refiner.evaluation.metrics import evaluate
-from gsea_refiner.evaluation.split import get_train_test_blind_split
+from gsea_refiner.evaluation.split import get_other_calibration_eval_split, get_train_test_blind_split
+from gsea_refiner.preprocessing.clean import clean_gene_set_name
 
 
 def _flatten(method: str, slice_name: str, result: dict) -> dict:
@@ -39,6 +42,8 @@ def main():
                         help="Parent dir containing trained model subdirectories")
     parser.add_argument("--output", default="data/output/benchmark_results.csv")
     parser.add_argument("--details", default="data/output/benchmark_details.json")
+    parser.add_argument("--zero-shot", action="store_true",
+                        help="Include zero-shot NLI baseline (downloads ~1.6GB model, slow)")
     args = parser.parse_args()
 
     train_df, matched_test_df, blind_df = get_train_test_blind_split(
@@ -56,6 +61,44 @@ def main():
         "regex_gsea_sq": make_regex_predictor(keywords_path=args.keywords),
         "tfidf_logreg": make_tfidf_logreg_predictor(train_df, seed=args.seed),
     }
+
+    if args.zero_shot:
+        from gsea_refiner.classification.calibrate import sweep_threshold
+        from transformers import pipeline as hf_pipeline
+
+        print("Loading zero-shot model (facebook/bart-large-mnli)...")
+        zs_classifier = hf_pipeline(
+            "zero-shot-classification", model="facebook/bart-large-mnli"
+        )
+        candidate_labels = pd.read_csv(args.keywords)["Category"].tolist()
+
+        # Calibrate confidence threshold for Other detection
+        cat_pathways = [
+            clean_gene_set_name(p)
+            for p in matched_test_df[matched_test_df["label"] != "Other"]["pathway"]
+        ]
+        cat_results = zs_classifier(cat_pathways, candidate_labels, batch_size=16)
+        if isinstance(cat_results, dict):
+            cat_results = [cat_results]
+        category_scores = np.array([r["scores"][0] for r in cat_results])
+
+        cal_others, _ = get_other_calibration_eval_split(
+            pool_path=args.pool, blind_path=args.blind, seed=args.seed,
+        )
+        other_pathways = [clean_gene_set_name(p) for p in cal_others["pathway"]]
+        other_results = zs_classifier(other_pathways, candidate_labels, batch_size=16)
+        if isinstance(other_results, dict):
+            other_results = [other_results]
+        other_scores = np.array([r["scores"][0] for r in other_results])
+
+        threshold, cal_f1 = sweep_threshold(category_scores, other_scores)
+        print(f"Zero-shot calibrated: threshold={threshold:.4f}, cal_f1={cal_f1:.4f}")
+
+        methods["zero_shot"] = make_zero_shot_predictor(
+            confidence_threshold=threshold,
+            keywords_path=args.keywords,
+            classifier=zs_classifier,
+        )
 
     model_dir = Path(args.model_dir)
     for name in sorted(model_dir.iterdir()) if model_dir.is_dir() else []:
