@@ -1,15 +1,4 @@
-"""Run the benchmark across baselines on two slices.
-
-Slices:
-  - matched: stratified 20% test split from the full labeled pool (excluding blind)
-  - blind:   200 reviewed Others, our honest test of regex's misses
-
-Output:
-  data/output/benchmark_results.csv  one row per (method, slice)
-  data/output/benchmark_details.json per-method metric details
-
-BioBERT rows are added by later phases.
-"""
+# Benchmark all classifiers (regex, tfidf, transformers) on matched/blind/combined slices
 
 import argparse
 import json
@@ -74,7 +63,8 @@ def main():
         if final.is_dir() and (final / "config.json").exists():
             methods[name.name] = make_transformer_predictor(str(final))
 
-    slices = {"matched": matched_test_df, "blind": blind_df}
+    combined_df = pd.concat([matched_test_df, blind_df], ignore_index=True)
+    slices = {"matched": matched_test_df, "blind": blind_df, "combined": combined_df}
 
     for method_name, predictor in methods.items():
         for slice_name, slice_df in slices.items():

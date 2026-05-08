@@ -1,6 +1,9 @@
 import json
 import os
+import shutil
+import tempfile
 from collections import Counter
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -38,14 +41,30 @@ MODELS = {
     "biomedbert": "microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext",
     "biobert": "dmis-lab/biobert-base-cased-v1.1",
     "scibert": "allenai/scibert_scivocab_uncased",
+    "bert_base": "google-bert/bert-base-uncased",
 }
 
 DEFAULT_MODELS = ["biomedbert"]
 DEFAULT_OUTPUT_DIR = "data/models"
+DEFAULT_CLEAN_MODEL_DIR = "data/models/biomedbert/final"
+CLEANED_OTHERS_CACHE = "data/training/cleaned_others.csv"
 
 
-def prepare_data(df: pd.DataFrame):
-    df = df[df["label"] != "Other"].copy()
+def prepare_data(
+    df: pd.DataFrame,
+    include_other: bool = False,
+    other_sample_size: int = 300,
+    seed: int = SEED,
+):
+    if not include_other:
+        df = df[df["label"] != "Other"].copy()
+    else:
+        others = df[df["label"] == "Other"]
+        non_others = df[df["label"] != "Other"]
+        if len(others) > other_sample_size:
+            others = others.sample(n=other_sample_size, random_state=seed)
+        df = pd.concat([non_others, others], ignore_index=True)
+
     df["pathway_clean"] = df["pathway"].apply(clean_gene_set_name)
 
     labels_sorted = sorted(df["label"].unique())
@@ -211,9 +230,13 @@ def _load_tokenizer(model_id):
 
 
 def _run_lr_sweep(model_name, model_id, df, label2id, id2label, class_weights, lr_candidates,
-                  model_out_dir, seed):
+                  base_dir, seed):
     tokenizer = _load_tokenizer(model_id)
     skf = StratifiedKFold(n_splits=N_FOLDS, shuffle=True, random_state=seed)
+
+    cv_tmp_dir = tempfile.mkdtemp(prefix=f"cv_{model_name}_")
+    curves_dir = os.path.join(base_dir, "cv_curves")
+    os.makedirs(curves_dir, exist_ok=True)
 
     lr_results = {}
     for lr in lr_candidates:
@@ -228,7 +251,7 @@ def _run_lr_sweep(model_name, model_id, df, label2id, id2label, class_weights, l
             train_ds = _make_dataset(df.iloc[train_idx], tokenizer)
             val_ds = _make_dataset(df.iloc[val_idx], tokenizer)
 
-            fold_dir = os.path.join(model_out_dir, model_name, f"cv_lr_{lr}", f"fold_{fold}")
+            fold_dir = os.path.join(cv_tmp_dir, f"cv_lr_{lr}", f"fold_{fold}")
             curve_logger = TrainingCurveLogger()
 
             trainer = _train_one(
@@ -249,18 +272,22 @@ def _run_lr_sweep(model_name, model_id, df, label2id, id2label, class_weights, l
             fold_scores.append(fold_f1)
             print(f"      fold {fold + 1}: macro F1 = {fold_f1:.4f}")
 
-            curve_logger.save(os.path.join(fold_dir, "training_curve.csv"))
+            curve_path = os.path.join(curves_dir, f"lr_{lr}_fold_{fold}.csv")
+            curve_logger.save(curve_path)
 
         mean_f1 = np.mean(fold_scores)
         std_f1 = np.std(fold_scores)
         lr_results[lr] = {"mean_f1": mean_f1, "std_f1": std_f1, "folds": fold_scores}
         print(f"    lr={lr}: {mean_f1:.4f} +/- {std_f1:.4f}")
 
+    shutil.rmtree(cv_tmp_dir, ignore_errors=True)
+    print(f"  Cleaned up CV checkpoints from {cv_tmp_dir}")
+
     return tokenizer, lr_results
 
 
 def _retrain_final(model_name, model_id, tokenizer, df, label2id, id2label, class_weights,
-                   best_lr, model_out_dir, seed):
+                   best_lr, base_dir, seed):
     print(f"\n  Retraining {model_name} on full training set with lr={best_lr}...")
 
     n_val = max(1, int(len(df) * 0.1))
@@ -270,7 +297,7 @@ def _retrain_final(model_name, model_id, tokenizer, df, label2id, id2label, clas
     final_train_ds = _make_dataset(df.iloc[train_indices], tokenizer)
     final_val_ds = _make_dataset(df.iloc[val_indices], tokenizer)
 
-    final_dir = os.path.join(model_out_dir, model_name, "final")
+    final_dir = os.path.join(base_dir, "final")
     curve_logger = TrainingCurveLogger()
 
     trainer = _train_one(
@@ -293,11 +320,51 @@ def _retrain_final(model_name, model_id, tokenizer, df, label2id, id2label, clas
     return final_dir
 
 
+def _clean_others(train_df, clean_model_dir, cache_path=CLEANED_OTHERS_CACHE):
+    cache = Path(cache_path)
+    if cache.exists():
+        cached = pd.read_csv(cache)
+        cached_pathways = set(cached["pathway"].tolist())
+        others_mask = train_df["label"] == "Other"
+        train_df = pd.concat([
+            train_df[~others_mask],
+            train_df[others_mask & train_df["pathway"].isin(cached_pathways)],
+        ]).reset_index(drop=True)
+        print(f"Loaded cleaned Others from cache ({len(cached_pathways)} pathways)")
+        return train_df
+
+    from gsea_refiner.classification.calibrate import (
+        clean_calibration_others,
+        collect_scores,
+    )
+
+    others_mask = train_df["label"] == "Other"
+    other_pathways = train_df.loc[others_mask, "pathway"].tolist()
+    logits = collect_scores(clean_model_dir, other_pathways)
+    keep_mask = clean_calibration_others(logits, threshold=0.99)
+    clean_indices = others_mask[others_mask].index[keep_mask]
+
+    cleaned_others = train_df.loc[clean_indices, ["pathway", "label"]]
+    cache.parent.mkdir(parents=True, exist_ok=True)
+    cleaned_others.to_csv(cache, index=False)
+
+    train_df = pd.concat([
+        train_df[~others_mask],
+        train_df.loc[clean_indices],
+    ]).reset_index(drop=True)
+    n_removed = int((~keep_mask).sum())
+    print(f"Cleaned Others: removed {n_removed}, kept {int(keep_mask.sum())} (cached to {cache})")
+    return train_df
+
+
 def fine_tune(
     model_names=None,
     model_out_dir=DEFAULT_OUTPUT_DIR,
     lr_candidates=None,
     seed=SEED,
+    include_other=False,
+    other_sample_size=300,
+    clean_model_dir=DEFAULT_CLEAN_MODEL_DIR,
 ):
     if model_names is None:
         model_names = DEFAULT_MODELS
@@ -305,19 +372,29 @@ def fine_tune(
         lr_candidates = LR_CANDIDATES
 
     train_df, _, _ = get_train_test_blind_split(seed=seed)
-    df, label2id, id2label = prepare_data(train_df)
+
+    if include_other:
+        train_df = _clean_others(train_df, clean_model_dir)
+
+    df, label2id, id2label = prepare_data(
+        train_df, include_other=include_other,
+        other_sample_size=other_sample_size, seed=seed,
+    )
     num_labels = len(label2id)
 
-    print(f"Training data: {len(df)} examples, {num_labels} classes (Other excluded)")
+    other_note = "" if include_other else " (Other excluded)"
+    print(f"Training data: {len(df)} examples, {num_labels} classes{other_note}")
     for label, count in sorted(Counter(df["label"].tolist()).items()):
         print(f"  {label:25s}: {count}")
 
     class_weights = compute_class_weights(df["label_id"].tolist(), num_labels)
 
     all_results = {}
+    single_model = len(model_names) == 1
 
     for model_name in model_names:
         model_id = MODELS[model_name]
+        base_dir = model_out_dir if single_model else os.path.join(model_out_dir, model_name)
         print(f"\n{'=' * 60}")
         print(f"{model_name} ({model_id})")
         print(f"{'=' * 60}")
@@ -330,7 +407,7 @@ def fine_tune(
             id2label=id2label,
             class_weights=class_weights,
             lr_candidates=lr_candidates,
-            model_out_dir=model_out_dir,
+            base_dir=base_dir,
             seed=seed,
         )
 
@@ -347,7 +424,7 @@ def fine_tune(
             id2label=id2label,
             class_weights=class_weights,
             best_lr=best_lr,
-            model_out_dir=model_out_dir,
+            base_dir=base_dir,
             seed=seed,
         )
 

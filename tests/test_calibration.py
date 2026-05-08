@@ -5,6 +5,9 @@ torch = pytest.importorskip("torch")
 
 from gsea_refiner.classification.calibrate import (  # noqa: E402
     apply_temperature,
+    clean_calibration_others,
+    compute_scores,
+    energy_scores,
     max_softmax_scores,
     sweep_threshold,
 )
@@ -43,4 +46,46 @@ def test_sweep_threshold_perfect_separation():
     cat_scores = np.array([0.9, 0.95, 0.92])
     other_scores = np.array([0.1, 0.15, 0.12])
     threshold, f1 = sweep_threshold(cat_scores, other_scores)
+    assert f1 == 1.0
+
+
+def test_energy_scores_shape():
+    logits = np.random.randn(10, 7)
+    scores = energy_scores(logits, temperature=1.0)
+    assert scores.shape == (10,)
+
+
+def test_energy_higher_for_peaked_logits():
+    peaked = np.array([[10.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]])
+    flat = np.array([[1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]])
+    assert energy_scores(peaked)[0] > energy_scores(flat)[0]
+
+
+def test_compute_scores_dispatches():
+    logits = np.random.randn(5, 7)
+    msp = compute_scores(logits, 1.0, "msp")
+    energy = compute_scores(logits, 1.0, "energy")
+    assert msp.shape == energy.shape == (5,)
+    assert not np.allclose(msp, energy)
+
+
+def test_clean_calibration_others():
+    logits = np.array([
+        [10.0, 0.0, 0.0],  # very peaked → likely mislabeled, should be removed
+        [1.0, 0.8, 0.7],   # flat → genuine Other, should be kept
+        [0.5, 0.4, 0.6],   # flat → genuine Other, should be kept
+    ])
+    mask = clean_calibration_others(logits, threshold=0.99)
+    assert mask.sum() == 2
+    assert not mask[0]
+    assert mask[1]
+    assert mask[2]
+
+
+def test_sweep_threshold_higher_is_category_false():
+    cat_scores = np.array([0.1, 0.15, 0.12])
+    other_scores = np.array([0.9, 0.85, 0.92])
+    threshold, f1 = sweep_threshold(
+        cat_scores, other_scores, higher_is_category=False
+    )
     assert f1 == 1.0

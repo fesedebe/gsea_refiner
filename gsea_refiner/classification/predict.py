@@ -31,9 +31,12 @@ def predict_categories(
     output_file: str,
     confidence_threshold: Optional[float] = None,
     temperature: float = 1.0,
+    scoring_method: str = "msp",
     max_length: int = 48,
     batch_size: int = 64,
 ):
+    from gsea_refiner.classification.calibrate import energy_scores as _energy_scores
+
     df = pd.read_csv(input_file, sep=None, engine="python")
     if "pathway" not in df.columns:
         raise ValueError("Input file must contain a 'pathway' column.")
@@ -41,12 +44,16 @@ def predict_categories(
     df["cleaned"] = df["pathway"].apply(clean_gene_set_name)
     tokenizer, model = load_model(model_dir)
 
-    if confidence_threshold is None or temperature == 1.0:
+    has_other_class = "Other" in model.config.label2id
+
+    if not has_other_class:
         cal = load_calibration(model_dir)
         if confidence_threshold is None and "threshold" in cal:
             confidence_threshold = cal["threshold"]
         if temperature == 1.0 and "temperature" in cal:
             temperature = cal["temperature"]
+        if scoring_method == "msp" and "scoring_method" in cal:
+            scoring_method = cal["scoring_method"]
 
     all_labels = []
     all_confidences = []
@@ -62,15 +69,21 @@ def predict_categories(
                 max_length=max_length,
             )
             outputs = model(**inputs)
-            logits = outputs.logits / temperature
-            probs = softmax(logits, dim=1)
+            raw_logits = outputs.logits
+            probs = softmax(raw_logits / temperature, dim=1)
+
+            if not has_other_class and scoring_method == "energy":
+                batch_logits = raw_logits.cpu().numpy()
+                scores = _energy_scores(batch_logits, temperature)
+            else:
+                scores = probs.max(dim=1).values.cpu().numpy()
 
             for j in range(probs.shape[0]):
                 pred_idx = torch.argmax(probs[j]).item()
                 pred_label = model.config.id2label[pred_idx]
-                confidence = probs[j, pred_idx].item()
+                confidence = float(scores[j])
 
-                if confidence_threshold is not None and confidence < confidence_threshold:
+                if not has_other_class and confidence_threshold is not None and confidence < confidence_threshold:
                     pred_label = "Other"
 
                 all_labels.append(pred_label)
