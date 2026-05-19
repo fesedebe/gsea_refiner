@@ -1,59 +1,56 @@
 # Methods, Data, and Evaluation
 
+## Task
+
+- **Input**: Gene set names from GSEA results (e.g., `"GOBP_IMMUNE_RESPONSE"`)
+- **Task**: Multi-class classification into 8 categories
+- **Output**: Functional theme (Cell Cycle, Differentiation, Epigenetic Reg., Immune, Lipid, Neuro, DNA Repair, or Other)
+
+| Example Pathway | Predicted Category |
+|---|---|
+| GOBP_INTERFERON_GAMMA_SIGNALING | Immune |
+| REACTOME_MITOTIC_SPINDLE_CHECKPOINT | Cell Cycle |
+| GOBP_RESPONSE_TO_OXIDATIVE_STRESS | DNA Repair |
+
 ## Preprocessing
-Tokenize pathway names from input data: e.g: ”GOBP_IMMUNE_RESPONSE_PATHWAY" → [immune response pathway]
 
-## Goals
-- **Input**: Gene set names (e.g., `"interferon gamma signaling"`)
-- **Task**: Multi-class classification
-- **Output**: High-level functional themes like `"immune"` or `"cell cycle"`
-
-| Example Token                  | Predicted Category |
-|-------------------------------|---------------------|
-| interferon gamma signaling    | Immune              |
-| mitotic spindle checkpoint    | Cell Cycle          |
-| response to oxidative stress  | Stress Response     |
-
----
+Pathway names are cleaned and tokenized: strip database prefix, replace underscores with spaces, lowercase. Example: `"GOBP_IMMUNE_RESPONSE_PATHWAY"` becomes `"immune response pathway"`.
 
 ## Labeled Training Data
-Pathway–category label pairs were curated using keyword-based rules. This was adapted from gsea-squared method described in co-authored publication [Balanis, Sheu, Esedebe et al., 2019](https://doi.org/10.1016/j.ccell.2019.06.005), where pathway keywords were grouped into biological themes for SCN profiling.
 
-- **Sources**: Pathway names from tools like GSEA (e.g., `"REACTOME_DNA_REPAIR"`)
-- **Logic**:
-  - `"immune"` → `IMMUN|CYTOKINE|MHC`
-  - `"repair"` → `REPAIR|FANCONI|DAMAGE`
-  - `"cycle"` → `CELL_CYCLE|MITOSIS|DIVISION`
+7,084 pathway-category pairs curated via a hybrid process: regex-seeded labeling (adapted from [Balanis, Sheu, Esedebe et al., 2019](https://doi.org/10.1016/j.ccell.2019.06.005)), followed by manual curation.
 
-These labels were used to supervise initial model training.
----
+Split sizes: Training n=5,507 / Test n=612 (90/10 stratified, seed=42).
 
 ## Model Training
-Next, BioBERT was fine-tuned for pathway name classification.
 
-- **Base model**: `dmis-lab/biobert-base-cased-v1.1`
-- **Training strategy**:
-  - Freeze lower 8 layers, train top 4
-  - Cross-entropy loss with class weighting
-  - Tokenizer: BioBERT default
+Four transformer models fine-tuned with "Other" as an explicit 8th class:
 
-- **Evaluation**:
-  - 5-fold stratified cross-validation
-  - Final model: Partial fine-tuned BioBERT (Macro-F1: 0.81)
+- **BioBERT** (`dmis-lab/biobert-base-cased-v1.1`)
+- **BiomedBERT** (`microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext`)
+- **SciBERT** (`allenai/scibert_scivocab_uncased`)
+- **BERT-base** (`google-bert/bert-base-uncased`)
 
----
+Training recipe: freeze bottom 6 layers, fine-tune top 6 + classification head. 5-fold stratified CV with LR sweep [1e-5, 2e-5, 5e-5]. Class-weighted CrossEntropyLoss. 20 epochs max with early stopping (patience=3) on validation F1. Best config retrained on full training set for final model.
 
-## Benchmarking
-| Method                         | Macro-F1 |
-|--------------------------------|----------|
-| TF-IDF + Logistic Regression   | 0.45    |
-| GloVe + BiLSTM                 | 0.65    |
-| DistilBERT                     | 0.75    |
-| BioBERT (Full fine tuning)     | 0.77    |
+## Evaluation
 
----
+| Method | Macro F1 | Macro F1 (excl. Other) | Accuracy |
+|---|---|---|---|
+| BiomedBERT 8-class | 0.7670 | 0.7449 | 0.8775 |
+| SciBERT 8-class | 0.7468 | 0.7252 | 0.8497 |
+| BioBERT 8-class | 0.7436 | 0.7209 | 0.8448 |
+| BERT-base 8-class | 0.6083 | 0.5739 | 0.7647 |
+| Regex baseline | 0.5523 | 0.5124 | 0.7418 |
+| BART-MNLI Zero-Shot | 0.2882 | 0.2196 | 0.6373 |
+
+**Notes:**
+- Regex comparison is circular (regex generated the training labels). Fair comparison is between learned methods.
+- "Excl. Other" macro F1 evaluates only the 7 biological categories, removing the dominant Other class (69% of test set).
+- BART-MNLI is a zero-shot baseline using `facebook/bart-large-mnli` with no fine-tuning.
 
 ## Future Directions
-- Benchmark other biomedical LLMs (SciBERT, PubMedBERT) or multi-omics embeddings to improve classification.
-- Use generative models (GPT) to propose new category groupings beyond training data.
-- Incorporate retrieval-augmented classification to pull descriptions from external pathway databases.
+
+- Multi-label classification for cross-category pathways (e.g., "immune cell differentiation")
+- Collection-type prefix tokens ([BP], [MF], [CC]) to disambiguate GO molecular function terms
+- MSigDB description augmentation for richer training signal
